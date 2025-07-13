@@ -1,7 +1,11 @@
 import { WebSocketServer } from 'ws';
 import { ghosts, evidenceTypes } from './ghostData.js';
 
-const wss = new WebSocketServer({ port: 8080, path: '/ws' });
+// Use process.env.PORT for Render, fallback to 8080 for local dev
+const PORT = process.env.PORT || process.env.VITE_BACKEND_PORT || 8080;
+
+// If you want to run ws.js standalone (not recommended for Render), use this:
+const wss = new WebSocketServer({ port: PORT, host: '0.0.0.0', path: '/ws' });
 
 let sessions = {};
 
@@ -208,4 +212,4 @@ function broadcast(sessionId, msg) {
   });
 }
 
-console.log('WebSocket server running on ws://localhost:8080/ws');
+console.log(`WebSocket server running on ws://0.0.0.0:${PORT}/ws`);
