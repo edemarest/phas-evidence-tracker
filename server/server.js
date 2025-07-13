@@ -209,3 +209,8 @@ function broadcast(sessionId, msg) {
     }
   });
 }
+
+// Add at the very end, after all other routes:
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
