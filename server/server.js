@@ -18,7 +18,7 @@ app.use(express.json());
 app.post("/api/token", tokenHandler);
 app.post("/.proxy/api/token", tokenHandler);
 
-function tokenHandler(req, res) {
+async function tokenHandler(req, res) {
   try {
     // Add flushable debug log to ensure logs show up on Render
     console.log("[/api/token] Incoming POST", {
