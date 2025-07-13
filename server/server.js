@@ -78,6 +78,8 @@ const server = app.listen(port, () => {
 const wss = new WebSocketServer({ server, path: "/ws" });
 
 let sessions = {};
+let journalCounter = 1;
+
 function getDefaultEvidenceState() {
   const state = {};
   evidenceTypes.forEach(e => { state[e] = 'blank'; });
@@ -87,6 +89,35 @@ function getDefaultGhostStates() {
   const state = {};
   ghosts.forEach(g => { state[g.name] = 'none'; });
   return state;
+}
+
+// Helper to find or create a session for joining
+function assignSessionForJoin() {
+  // Find the latest session with <4 users
+  let sessionIds = Object.keys(sessions)
+    .filter(id => id.startsWith("journal-"))
+    .sort((a, b) => {
+      // Sort numerically by journal number
+      const na = parseInt(a.split("-")[1], 10);
+      const nb = parseInt(b.split("-")[1], 10);
+      return na - nb;
+    });
+  for (let id of sessionIds) {
+    if (sessions[id].users.length < 4) {
+      return id;
+    }
+  }
+  // None found, create a new one
+  const newId = `journal-${journalCounter++}`;
+  sessions[newId] = {
+    evidenceState: getDefaultEvidenceState(),
+    ghostStates: getDefaultGhostStates(),
+    users: [],
+    log: [],
+    boneFound: false,
+    cursedObjectFound: false,
+  };
+  return newId;
 }
 
 wss.on('connection', function connection(ws, req) {
@@ -100,9 +131,18 @@ wss.on('connection', function connection(ws, req) {
     console.log(`[WS] Received:`, msg);
 
     switch (msg.type) {
-      case 'join':
-        ws.sessionId = msg.sessionId;
+      case 'join': {
+        let requestedSessionId = msg.sessionId;
         ws.user = msg.user;
+
+        // If client requests "default-session", assign to a real session
+        if (requestedSessionId === "default-session") {
+          requestedSessionId = assignSessionForJoin();
+        }
+
+        ws.sessionId = requestedSessionId;
+
+        // Create session if it doesn't exist (for custom session IDs)
         if (!sessions[ws.sessionId]) {
           sessions[ws.sessionId] = {
             evidenceState: getDefaultEvidenceState(),
@@ -113,10 +153,27 @@ wss.on('connection', function connection(ws, req) {
             cursedObjectFound: false,
           };
         }
+
+        // If session is full, assign to a new session
+        if (sessions[ws.sessionId].users.length >= 4) {
+          ws.sessionId = assignSessionForJoin();
+          if (!sessions[ws.sessionId]) {
+            sessions[ws.sessionId] = {
+              evidenceState: getDefaultEvidenceState(),
+              ghostStates: getDefaultGhostStates(),
+              users: [],
+              log: [],
+              boneFound: false,
+              cursedObjectFound: false,
+            };
+          }
+        }
+
         sessions[ws.sessionId].users.push(ws);
         ws.send(JSON.stringify({
           type: 'sync_state',
           state: sessions[ws.sessionId],
+          sessionId: ws.sessionId,
         }));
         broadcast(ws.sessionId, {
           type: 'user_joined',
@@ -124,6 +181,7 @@ wss.on('connection', function connection(ws, req) {
         });
         console.log(`[WS] User joined: ${ws.user?.username} (session: ${ws.sessionId})`);
         break;
+      }
       case 'evidence_update':
         if (!ws.sessionId || !sessions[ws.sessionId]) return;
         sessions[ws.sessionId].evidenceState[msg.evidence] = msg.state;
