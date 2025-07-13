@@ -3,7 +3,9 @@
 // ws.sendMessage({ type: 'evidence_update', ... });
 
 function isDiscordActivity() {
-  return window.location.hostname.endsWith("discordsays.com");
+  // Use frame_id param or .discordsays.com for Discord Activity
+  return window.location.search.includes("frame_id") ||
+    window.location.hostname.endsWith("discordsays.com");
 }
 
 export function createWSClient(sessionId, user, onMessage) {
@@ -17,9 +19,17 @@ export function createWSClient(sessionId, user, onMessage) {
     }
   }
 
-  const wsUrl = isDiscordActivity()
-    ? `wss://${window.location.hostname}/.proxy/ws`
-    : "ws://localhost:3001/ws"; // <-- use port 3001 for dev
+  // --- WebSocket URL logic ---
+  // Discord Activity: must use .proxy endpoint (CSP restriction)
+  // Local/dev: use VITE_LOCAL_WS_URL or fallback to ws://localhost:3001/ws
+  let wsUrl;
+  if (isDiscordActivity()) {
+    wsUrl = `wss://${window.location.hostname}/.proxy/ws`;
+  } else if (import.meta.env.VITE_LOCAL_WS_URL) {
+    wsUrl = import.meta.env.VITE_LOCAL_WS_URL;
+  } else {
+    wsUrl = "ws://localhost:3001/ws"; // <-- FIXED: match your backend port!
+  }
 
   let ws;
   try {
@@ -30,7 +40,6 @@ export function createWSClient(sessionId, user, onMessage) {
       `[Phasmo WS] Failed to create WebSocket connection to ${wsUrl}:`,
       err
     );
-    // Only alert if not sandboxed
     if (!window.location.hostname.endsWith("discordsays.com")) {
       alert(
         `Could not connect to WebSocket server at ${wsUrl}.\n\nError: ${err.message}`
@@ -121,3 +130,4 @@ export function createWSClient(sessionId, user, onMessage) {
 
   return ws;
 }
+

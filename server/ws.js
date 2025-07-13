@@ -1,16 +1,51 @@
 import { WebSocketServer } from 'ws';
-import { ghosts, evidenceTypes } from './ghostData.js'; // <-- create this file next
+import { ghosts, evidenceTypes } from './ghostData.js';
 
 const wss = new WebSocketServer({ port: 8080, path: '/ws' });
 
-// Session state: { [sessionId]: { evidenceState, users, log, boneFound, cursedObjectFound } }
 let sessions = {};
 
 function getDefaultEvidenceState() {
-  // { evidenceType: 'blank' | 'circled' | 'crossed' }
   const state = {};
   evidenceTypes.forEach(e => { state[e] = 'blank'; });
   return state;
+}
+
+function getDefaultGhostStates() {
+  const state = {};
+  ghosts.forEach(g => { state[g.name] = 'none'; });
+  return state;
+}
+
+// Helper to filter possible ghosts based on evidence state
+function filterPossibleGhosts(evidenceState, ghosts) {
+  const circled = Object.entries(evidenceState)
+    .filter(([_, v]) => v === "circled")
+    .map(([k]) => k);
+  const crossed = Object.entries(evidenceState)
+    .filter(([_, v]) => v === "crossed")
+    .map(([k]) => k);
+
+  return ghosts.filter((ghost) => {
+    if (!circled.every((e) => ghost.evidences.includes(e))) return false;
+    if (crossed.some((e) => ghost.evidences.includes(e))) return false;
+    return true;
+  });
+}
+
+function updateFinalGhost(session) {
+  // Priority: circled ghost, else only one possible ghost, else null
+  const circledGhost = Object.entries(session.ghostStates).find(([_, v]) => v === "circled");
+  if (circledGhost) {
+    session.finalGhost = circledGhost[0];
+    return;
+  }
+  const possibleGhosts = filterPossibleGhosts(session.evidenceState, ghosts);
+  if (possibleGhosts.length === 1) {
+    session.finalGhost = possibleGhosts[0].name;
+  } else {
+    session.finalGhost = null;
+  }
 }
 
 wss.on('connection', function connection(ws) {
@@ -25,30 +60,27 @@ wss.on('connection', function connection(ws) {
       return;
     }
 
-    // --- Message Handling ---
-
     switch (msg.type) {
       case 'join':
-        // Joining a session
-        // msg: { type: 'join', sessionId, user }
         ws.sessionId = msg.sessionId;
         ws.user = msg.user;
         if (!sessions[ws.sessionId]) {
           sessions[ws.sessionId] = {
             evidenceState: getDefaultEvidenceState(),
+            ghostStates: getDefaultGhostStates(),
             users: [],
             log: [],
             boneFound: false,
             cursedObjectFound: false,
+            finalGhost: null,
           };
         }
         sessions[ws.sessionId].users.push(ws);
-        // Send current state to new user
+        updateFinalGhost(sessions[ws.sessionId]);
         ws.send(JSON.stringify({
           type: 'sync_state',
           state: sessions[ws.sessionId],
         }));
-        // Broadcast user join
         broadcast(ws.sessionId, {
           type: 'user_joined',
           user: ws.user,
@@ -56,28 +88,25 @@ wss.on('connection', function connection(ws) {
         break;
 
       case 'evidence_update':
-        // Updating evidence state
-        // msg: { type: 'evidence_update', evidence, state, user }
         if (!ws.sessionId || !sessions[ws.sessionId]) return;
         sessions[ws.sessionId].evidenceState[msg.evidence] = msg.state;
-        // Log action
         sessions[ws.sessionId].log.push({
           user: msg.user,
-          action: `${msg.user.username} set ${msg.evidence} to ${msg.state}`,
-          timestamp: Date.now(),
+          actionType: "evidence_update",
+          evidence: msg.evidence,
+          state: msg.state,
         });
-        // Broadcast update
+        updateFinalGhost(sessions[ws.sessionId]);
         broadcast(ws.sessionId, {
           type: 'evidence_update',
           evidence: msg.evidence,
           state: msg.state,
           user: msg.user,
+          finalGhost: sessions[ws.sessionId].finalGhost,
         });
         break;
 
       case 'log_action':
-        // Logging user actions
-        // msg: { type: 'log_action', action, user }
         if (!ws.sessionId || !sessions[ws.sessionId]) return;
         sessions[ws.sessionId].log.push({
           user: msg.user,
@@ -92,13 +121,12 @@ wss.on('connection', function connection(ws) {
         break;
 
       case 'bone_update':
-        // msg: { type: 'bone_update', found, user }
         if (!ws.sessionId || !sessions[ws.sessionId]) return;
         sessions[ws.sessionId].boneFound = msg.found;
         sessions[ws.sessionId].log.push({
           user: msg.user,
-          action: `${msg.user.username} marked bone as ${msg.found ? 'found' : 'not found'}`,
-          timestamp: Date.now(),
+          actionType: "bone_update",
+          found: msg.found,
         });
         broadcast(ws.sessionId, {
           type: 'bone_update',
@@ -108,13 +136,12 @@ wss.on('connection', function connection(ws) {
         break;
 
       case 'cursed_object_update':
-        // msg: { type: 'cursed_object_update', found, user }
         if (!ws.sessionId || !sessions[ws.sessionId]) return;
         sessions[ws.sessionId].cursedObjectFound = msg.found;
         sessions[ws.sessionId].log.push({
           user: msg.user,
-          action: `${msg.user.username} marked cursed object as ${msg.found ? 'found' : 'not found'}`,
-          timestamp: Date.now(),
+          actionType: "cursed_object_update",
+          found: msg.found,
         });
         broadcast(ws.sessionId, {
           type: 'cursed_object_update',
@@ -123,27 +150,54 @@ wss.on('connection', function connection(ws) {
         });
         break;
 
+      case 'ghost_state_update':
+        if (!ws.sessionId || !sessions[ws.sessionId]) return;
+        if (!sessions[ws.sessionId].ghostStates) {
+          sessions[ws.sessionId].ghostStates = getDefaultGhostStates();
+        }
+        sessions[ws.sessionId].ghostStates[msg.ghostName] = msg.state;
+        sessions[ws.sessionId].log.push({
+          user: msg.user,
+          actionType: "ghost_state_update",
+          ghostName: msg.ghostName,
+          state: msg.state,
+        });
+
+        // Only allow one circled ghost at a time
+        if (msg.state === "circled") {
+          Object.keys(sessions[ws.sessionId].ghostStates).forEach(name => {
+            if (name !== msg.ghostName && sessions[ws.sessionId].ghostStates[name] === "circled") {
+              sessions[ws.sessionId].ghostStates[name] = "none";
+            }
+          });
+        }
+        updateFinalGhost(sessions[ws.sessionId]);
+        broadcast(ws.sessionId, {
+          type: 'ghost_state_update',
+          ghostName: msg.ghostName,
+          state: msg.state,
+          user: msg.user,
+          ghostStates: sessions[ws.sessionId].ghostStates,
+          finalGhost: sessions[ws.sessionId].finalGhost,
+        });
+        break;
       // Add more message types as needed
     }
   });
 
   ws.on('close', function() {
-    // Remove user from session
     if (ws.sessionId && sessions[ws.sessionId]) {
       sessions[ws.sessionId].users = sessions[ws.sessionId].users.filter(u => u !== ws);
       broadcast(ws.sessionId, {
         type: 'user_left',
         user: ws.user,
       });
-      // Optionally clean up empty sessions
       if (sessions[ws.sessionId].users.length === 0) {
         delete sessions[ws.sessionId];
       }
     }
   });
 });
-
-// Syncing state to all clients is handled by the 'broadcast' function and 'sync_state' message on join
 
 function broadcast(sessionId, msg) {
   if (!sessions[sessionId]) return;

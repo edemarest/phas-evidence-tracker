@@ -33,6 +33,8 @@ export default function App({ user }) {
   const [ghostStates, setGhostStates] = useState({});
   const [showGhostTable, setShowGhostTable] = useState(false);
   const [wsError, setWsError] = useState(null);
+  const [finalGhost, setFinalGhost] = useState("?");
+  const [mobilePage, setMobilePage] = useState("left"); // "left" or "right"
   const wsRef = useRef(null);
 
   const sessionId = "default-session";
@@ -45,10 +47,14 @@ export default function App({ user }) {
       ws = createWSClient(sessionId, user, (msg) => {
         switch (msg.type) {
           case "ghost_state_update":
-            setGhostStates((prev) => ({
-              ...prev,
-              [msg.ghostName]: msg.state,
-            }));
+            if (msg.ghostStates) {
+              setGhostStates(msg.ghostStates);
+            } else if (msg.ghostName && msg.state) {
+              setGhostStates((prev) => ({
+                ...prev,
+                [msg.ghostName]: msg.state,
+              }));
+            }
             setState((prev) =>
               prev
                 ? {
@@ -65,10 +71,14 @@ export default function App({ user }) {
                   }
                 : prev
             );
+            if ("finalGhost" in msg) {
+              setFinalGhost(msg.finalGhost || "?");
+            }
             break;
           case "sync_state":
             setState(msg.state);
             setGhostStates(msg.state.ghostStates || {});
+            setFinalGhost(msg.state.finalGhost || "?");
             break;
           case "evidence_update":
             setState((prev) =>
@@ -91,6 +101,10 @@ export default function App({ user }) {
                   }
                 : prev
             );
+            // Listen for finalGhost in evidence_update
+            if ("finalGhost" in msg) {
+              setFinalGhost(msg.finalGhost || "?");
+            }
             break;
           case "bone_update":
             setState((prev) =>
@@ -251,85 +265,120 @@ export default function App({ user }) {
   const users = [{ username: user.username }];
 
   const possibleGhosts = filterGhosts(state.evidenceState, ghosts);
-  const finalGhost = possibleGhosts.length === 1 ? possibleGhosts[0].name : "?";
+
+  // Detect mobile
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 700;
 
   return (
-    <div className="journal-app-main">
-      {/* Left Page */}
-      <div className="journal-page left">
-        <h1 className="journal-title">
-          <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
-          Phasmophobia Journal
-        </h1>
-        <div className="ghost-hunting-team">
-          <b>
-            <FaSkull style={{ marginRight: 4, verticalAlign: "middle" }} />
-            Ghost Hunting Team:
-          </b>{" "}
-          {users.map((u) => u.username).join(", ")}
-        </div>
-        <SessionControls
-          users={users}
-          boneFound={state.boneFound}
-          cursedObjectFound={state.cursedObjectFound}
-          onBoneToggle={handleBoneToggle}
-          onCursedObjectToggle={handleCursedObjectToggle}
-        />
-        <h2 className="section-title evidence-section-title">
-          <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
-          Evidence
-        </h2>
-        <Journal
-          evidenceState={state.evidenceState}
-          evidenceTypes={evidenceTypes}
-          onToggle={handleToggleEvidence}
-        />
-        <div className="status-bar">
-          Status: {connected ? "Connected" : "Disconnected"}
-        </div>
-      </div>
-
-      {/* Right Page */}
-      <div className="journal-page right">
-        <div className="possible-ghosts-header-row">
-          <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
-            <FaListAlt style={{ marginRight: 8, verticalAlign: "middle" }} />
-            Possible Ghosts
-          </h2>
+    <div>
+      {/* Mobile toggle bar */}
+      {isMobile && (
+        <div className="mobile-page-toggle-bar">
           <button
-            className="ghost-list-table-btn"
-            title="Show all ghosts table"
-            style={{ marginLeft: 8, marginTop: 2, fontSize: "1.2em" }}
-            onClick={() => setShowGhostTable(true)}
+            className={`mobile-page-toggle-btn${mobilePage === "left" ? " active" : ""}`}
+            onClick={() => setMobilePage("left")}
+            aria-label="Show Journal"
           >
-            <FaQuestionCircle />
+            Journal
           </button>
-          <div className="final-ghost-inline">
-            <span className="final-ghost-label-inline">Final Ghost:</span>
-            <span className="final-ghost-value-inline">
-              {finalGhost === "?" ? "???" : finalGhost}
-            </span>
+          <button
+            className={`mobile-page-toggle-btn${mobilePage === "right" ? " active" : ""}`}
+            onClick={() => setMobilePage("right")}
+            aria-label="Show Ghosts"
+          >
+            Ghosts
+          </button>
+        </div>
+      )}
+      <div className="journal-app-main">
+        <div
+          className={
+            "journal-page left" +
+            (isMobile ? (mobilePage === "left" ? " mobile-active" : "") : "")
+          }
+        >
+          <div className="journal-page-content">
+            <h1 className="journal-title">
+              <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
+              Phasmophobia Journal
+            </h1>
+            <div className="ghost-hunting-team">
+              <b>
+                <FaSkull style={{ marginRight: 4, verticalAlign: "middle" }} />
+                Ghost Hunting Team:
+              </b>{" "}
+              {users.map((u) => u.username).join(", ")}
+            </div>
+            <SessionControls
+              users={users}
+              boneFound={state.boneFound}
+              cursedObjectFound={state.cursedObjectFound}
+              onBoneToggle={handleBoneToggle}
+              onCursedObjectToggle={handleCursedObjectToggle}
+            />
+            <h2 className="section-title evidence-section-title">
+              <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
+              Evidence
+            </h2>
+            <Journal
+              evidenceState={state.evidenceState}
+              evidenceTypes={evidenceTypes}
+              onToggle={handleToggleEvidence}
+            />
+          </div>
+          <div className="status-bar">
+            Status: {connected ? "Connected" : "Disconnected"}
           </div>
         </div>
-        <div className="possible-ghosts-list" style={{ marginBottom: "0" }}>
-          <GhostList
-            ghosts={ghosts}
-            possibleGhosts={possibleGhosts}
-            ghostStates={ghostStates}
-            onGhostToggle={handleGhostToggle}
-            evidenceState={state.evidenceState}
-            onShowTable={() => setShowGhostTable(true)}
-          />
-        </div>
-        {showGhostTable && (
-          <GhostTable ghosts={ghosts} onClose={() => setShowGhostTable(false)} />
-        )}
-        <h2 className="section-title activity-log-title-main">
-          <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
-          Activity Log
-        </h2>
-        <div className="activity-log-wrapper">
-          <ActivityLog log={state.log || []} />
+        {!isMobile && <div className="journal-binding" aria-hidden="true"></div>}
+        <div
+          className={
+            "journal-page right" +
+            (isMobile ? (mobilePage === "right" ? " mobile-active" : "") : "")
+          }
+        >
+          <div className="journal-page-content">
+            <div className="possible-ghosts-header-row">
+              <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
+                <FaListAlt style={{ marginRight: 8, verticalAlign: "middle" }} />
+                Possible Ghosts
+              </h2>
+              <button
+                className="ghost-list-table-btn"
+                title="Show all ghosts table"
+                style={{ marginLeft: 8, marginTop: 2, fontSize: "1.2em" }}
+                onClick={() => setShowGhostTable(true)}
+              >
+                <FaQuestionCircle />
+              </button>
+              <div className="final-ghost-inline">
+                <span className="final-ghost-label-inline">Final Ghost:</span>
+                <span className="final-ghost-value-inline">
+                  {!finalGhost || finalGhost === "?" ? "???" : finalGhost}
+                </span>
+              </div>
+            </div>
+            <div className="possible-ghosts-list" style={{ marginBottom: "0" }}>
+              <GhostList
+                ghosts={ghosts}
+                possibleGhosts={possibleGhosts}
+                ghostStates={ghostStates}
+                onGhostToggle={handleGhostToggle}
+                evidenceState={state.evidenceState}
+                onShowTable={() => setShowGhostTable(true)}
+              />
+            </div>
+            {showGhostTable && (
+              <GhostTable ghosts={ghosts} onClose={() => setShowGhostTable(false)} />
+            )}
+            <h2 className="section-title activity-log-title-main">
+              <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
+              Activity Log
+            </h2>
+            <div className="activity-log-wrapper">
+              <ActivityLog log={state.log || []} />
+            </div>
+          </div>
         </div>
       </div>
       {/* Responsive styles */}

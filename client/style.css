@@ -1,12 +1,9 @@
-/* 1️⃣ Import Google Fonts for handwriting theme */
-@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand:wght@400;700&family=Shadows+Into+Light&family=Architects+Daughter&display=swap');
-
 /* 2️⃣ Theme Variables */
 :root {
   --color-bg-paper: #F5E1B9;
   --color-gridline: #C2A77D;
-  --color-text-primary: #1a1a1a; /* Darker for better contrast */
-  --color-text-secondary: #444444; /* Slightly darker */
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #444444;
   --color-accent-red: #B22222;
   --color-checkbox-fill: #F08080;
   --color-ghost-gray: #D9D9D6;
@@ -28,60 +25,214 @@
 
 /* 3️⃣ Global Styles */
 body {
-  background-color: var(--color-bg-paper);
+  background: #2e1c0e;
   font-family: var(--font-body);
   color: var(--color-text-primary);
   margin: 0;
   min-height: 100vh;
   line-height: 1.5;
-  /* Darker, blurred grid background */
   background-image:
-    repeating-linear-gradient(to bottom, #c2a77d99 0 1px, transparent 1px 32px),
-    repeating-linear-gradient(to right, #c2a77d99 0 1px, transparent 1px 32px);
-  background-size: 32px 32px;
-  background-blend-mode: multiply;
-  filter: blur(0.5px) brightness(0.97);
+    radial-gradient(ellipse at center, #3a2412 0%, #1a1107 100%),
+    repeating-linear-gradient(to bottom, #c2a77d33 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(to right, #c2a77d33 0 1px, transparent 1px 32px);
+  background-size: cover, 32px 32px, 32px 32px;
+  background-blend-mode: multiply, normal, normal;
+  filter: blur(0) brightness(0.93);
+  position: relative;
+}
+
+/* --- Layout fixes for book/iframe view --- */
+
+/* Ensure #app fills the viewport and centers the book */
+html, body {
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  min-width: 100vw;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2e1c0e;
 }
 
 #app {
-  max-width: 1200px;
+  width: 100vw;
+  height: 100vh;
+  min-width: 320px;
+  min-height: 400px;
+  max-width: 100vw;
+  max-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #3a2412;
+  box-shadow: 0 0 64px 0 #000a, 0 0 0 12px #2e1c0e;
+  border-radius: 24px;
+  padding: 0;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* Book container: always centered, fixed height, scrolls internally if needed */
+.journal-app-main {
+  display: flex;
+  flex-direction: row;
+  width: 900px;
+  max-width: 96vw;
+  height: 90vh;
+  min-height: 480px;
+  max-height: 90vh;
   margin: 0 auto;
-  min-height: 100vh;
+  background: linear-gradient(90deg, #f5e1b9 0%, #f5e1b9 49%, #e9d3a3 51%, #e9d3a3 100%);
+  border-radius: 20px;
+  box-shadow: 0 0 32px #0002;
+  align-items: stretch;
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+}
+
+/* Book binding effect */
+.journal-binding {
+  width: 18px;
+  min-width: 18px;
+  background: repeating-linear-gradient(
+    135deg,
+    #bfa76a 0px,
+    #bfa76a 6px,
+    #a88c5a 6px,
+    #a88c5a 12px
+  );
+  box-shadow: 0 0 8px #bfa76a55;
+  border-radius: 12px;
+  margin: 0 -2px;
+  z-index: 3;
+  position: relative;
+  height: 100%;
+  display: block;
+}
+
+/* Pages: always same height, scroll internally if needed */
+.journal-page {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-paper);
+  box-shadow: var(--shadow);
+  border-radius: 0;
+  margin: 0;
+  gap: var(--spacing-s);
+  overflow: hidden;
+  position: relative;
+  align-items: stretch;
+}
+
+.journal-page.left {
+  border-top-left-radius: 18px;
+  border-bottom-left-radius: 18px;
+  border-right: 0;
+  box-shadow: 2px 0 8px #c2a77d33;
+  border-right: 4px solid #bfa76a;
+}
+
+.journal-page.right {
+  border-top-right-radius: 18px;
+  border-bottom-right-radius: 18px;
+  border-left: 0;
+  box-shadow: -2px 0 8px #c2a77d33;
+  border-left: 4px solid #bfa76a;
+}
+
+/* Scrollable content inside each page */
+.journal-page > *:not(.journal-title):not(.ghost-hunting-team):not(.status-bar) {
+  flex-shrink: 0;
+}
+
+.journal-page {
+  /* Make content scrollable if it overflows */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-h1, h2, h3 {
-  font-family: var(--font-heading);
-  color: var(--color-text-primary);
-  font-weight: 700;
-  margin-bottom: var(--spacing-m);
+.journal-page-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: var(--spacing-m);
 }
 
-h1 { font-size: 2.2rem; }
-h2 { font-size: 1.5rem; }
-h3 { font-size: 1.2rem; }
-
-.section-title {
-  font-family: var(--font-heading);
-  font-size: 1.5rem;
-  color: var(--color-text-primary);
-  margin-bottom: var(--spacing-m);
+/* Ensure status bar stays at the bottom */
+.status-bar {
+  margin-top: auto;
+  font-size: 0.9em;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
 }
 
-/* 4️⃣ Main App Layout (for App.jsx) */
+/* Responsive, fixed-size journal "book" */
+#app {
+  max-width: 980px;
+  width: 98vw;
+  min-width: 320px;
+  min-height: 600px;
+  height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: #3a2412;
+  box-shadow: 0 0 64px 0 #000a, 0 0 0 12px #2e1c0e;
+  border-radius: 24px;
+  padding: 36px 0;
+  position: relative;
+  z-index: 1;
+  margin: auto;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+/* Center the journal in the viewport, even in an iframe */
+body, html {
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  min-width: 100vw;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2e1c0e;
+}
+
+/* Book binding effect between pages */
 .journal-app-main {
   display: flex;
   flex-direction: row;
-  min-height: 100vh;
-  background: transparent;
+  min-height: 80vh;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  background: none;
   color: var(--color-text-primary);
   font-family: var(--font-body);
-  gap: var(--spacing-l); /* tighter gap */
+  gap: 0;
+  position: relative;
+  z-index: 2;
+  box-shadow: none;
 }
 
 .journal-page {
-  flex: 1;
+  flex: 1 1 0;
   padding: var(--spacing-l) var(--spacing-m);
   display: flex;
   flex-direction: column;
@@ -89,29 +240,154 @@ h3 { font-size: 1.2rem; }
   position: relative;
   min-width: 0;
   box-shadow: var(--shadow);
-  border-radius: var(--radius);
-  margin: var(--spacing-m) 0;
-  gap: var(--spacing-s); /* reduced vertical gap */
+  border-radius: 0;
+  margin: 0;
+  gap: var(--spacing-s);
+  height: 100%;
+  overflow: hidden;
 }
 
 .journal-page.left {
-  border-right: 2px solid var(--color-gridline);
+  border-top-left-radius: 18px;
+  border-bottom-left-radius: 18px;
+  border-right: 0;
+  box-shadow: 2px 0 8px #c2a77d33;
+  border-right: 4px solid #bfa76a;
+  position: relative;
 }
 
 .journal-page.right {
-  /* Ghost watermark can be absolutely positioned here if desired */
+  border-top-right-radius: 18px;
+  border-bottom-right-radius: 18px;
+  border-left: 0;
+  box-shadow: -2px 0 8px #c2a77d33;
+  border-left: 4px solid #bfa76a;
+  position: relative;
+}
+
+/* Book binding "spine" */
+.journal-binding {
+  width: 18px;
+  min-width: 18px;
+  background: repeating-linear-gradient(
+    135deg,
+    #bfa76a 0px,
+    #bfa76a 6px,
+    #a88c5a 6px,
+    #a88c5a 12px
+  );
+  box-shadow: 0 0 8px #bfa76a55;
+  border-radius: 12px;
+  margin: 0 -2px;
+  z-index: 3;
+  position: relative;
+  height: 100%;
+  display: block;
+}
+
+/* --- Mobile-specific styles for journal page toggle --- */
+@media (max-width: 700px) {
+  #app {
+    max-width: 100vw;
+    min-width: 0;
+    height: 100vh;
+    padding: 0;
+    border-radius: 0;
+  }
+  .journal-app-main {
+    flex-direction: column;
+    min-height: 0;
+    max-width: 100vw;
+    width: 100vw;
+    gap: 0;
+    align-items: stretch;
+    position: relative;
+    box-shadow: none;
+  }
+  .journal-page {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    margin: 0;
+    padding: var(--spacing-m) var(--spacing-xs);
+    height: 50vh;
+    max-height: 50vh;
+    min-height: 0;
+    width: 100vw;
+    box-shadow: none;
+    display: none; /* Hide by default, show via .mobile-active */
+  }
+  .journal-page.mobile-active {
+    display: flex !important;
+  }
+  .journal-binding {
+    display: none !important;
+  }
+  .mobile-page-toggle-bar {
+    display: flex;
+    width: 100vw;
+    justify-content: center;
+    align-items: center;
+    background: #3a2412;
+    border-bottom: 2px solid #bfa76a;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    height: 48px;
+    box-shadow: 0 2px 8px #0002;
+  }
+  .mobile-page-toggle-btn {
+    flex: 1 1 0;
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    font-family: var(--font-heading);
+    font-size: 1.13em;
+    padding: 10px 0;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: border-color 0.18s, background 0.18s;
+    outline: none;
+  }
+  .mobile-page-toggle-btn.active,
+  .mobile-page-toggle-btn:focus {
+    border-bottom: 3px solid var(--color-accent-red);
+    background: #f5e1b9;
+    color: var(--color-accent-red);
+  }
+  /* Ensure content is not hidden behind toggle bar */
+  .journal-app-main {
+    margin-top: 48px;
+  }
 }
 
 /* 5️⃣ Responsive Layout */
 @media (max-width: 900px) {
+  #app {
+    max-width: 98vw;
+    min-width: 0;
+    height: auto;
+    padding: 0;
+  }
   .journal-app-main {
     flex-direction: column;
-    gap: var(--spacing-l);
+    min-height: 0;
+    max-width: 100vw;
+    width: 100%;
+    gap: 0;
   }
   .journal-page {
+    border-radius: 18px !important;
+    border-left: none !important;
     border-right: none !important;
     margin: var(--spacing-m) 0;
-    padding: var(--spacing-l) var(--spacing-s);
+    padding: var(--spacing-l) var(--spacing-xs);
+    height: auto;
+    max-height: none;
+  }
+  .journal-binding {
+    display: none;
   }
 }
 
@@ -121,7 +397,7 @@ h3 { font-size: 1.2rem; }
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: var(--spacing-l);
-  margin-bottom: var(--spacing-s); /* less space below panels */
+  margin-bottom: var(--spacing-s);
   border: 1.5px solid var(--color-gridline);
 }
 
@@ -146,7 +422,7 @@ h3 { font-size: 1.2rem; }
   font-family: var(--font-log), cursive;
   font-size: 1.05rem;
   color: var(--color-text-primary);
-  margin-bottom: 0.3em; /* tighter spacing */
+  margin-bottom: 0.3em;
   margin-top: 0.1em;
   letter-spacing: 0.01em;
   word-break: break-word;
@@ -164,7 +440,7 @@ h3 { font-size: 1.2rem; }
 
 .possible-ghosts-title {
   margin-top: 0;
-  margin-bottom: var(--spacing-xs); /* less space under titles */
+  margin-bottom: var(--spacing-xs);
 }
 
 .possible-ghosts-list {
@@ -172,7 +448,7 @@ h3 { font-size: 1.2rem; }
   max-height: none;
   overflow: visible;
   padding: 0;
-  margin-bottom: var(--spacing-s); /* less space below possible ghosts */
+  margin-bottom: var(--spacing-s);
 }
 
 .activity-log-wrapper {
@@ -180,7 +456,7 @@ h3 { font-size: 1.2rem; }
   max-height: 110px;
   min-height: 90px;
   overflow-y: auto;
-  margin-bottom: var(--spacing-s); /* less space below activity log */
+  margin-bottom: var(--spacing-s);
 }
 
 .possible-ghosts-header-row {
@@ -221,4 +497,36 @@ h3 { font-size: 1.2rem; }
   letter-spacing: 0.04em;
 }
 
-/* Remove conflicting .activity-log styles here, keep only in ActivityLog.css */
+/* Remove @font-face rules if you don't have valid font files in /public/fonts/ */
+@font-face {
+  font-family: 'Patrick Hand';
+  src: url('/fonts/PatrickHand-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Shadows Into Light';
+  src: url('/fonts/ShadowsIntoLight-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Architects Daughter';
+  src: url('/fonts/ArchitectsDaughter-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Replace the above with system fonts if you don't have valid font files: */
+/*
+:root {
+  --font-heading: 'Segoe UI', 'Arial', sans-serif;
+  --font-body: 'Segoe UI', 'Arial', sans-serif;
+  --font-log: 'Segoe UI', 'Arial', sans-serif;
+}
+*/

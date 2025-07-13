@@ -9,7 +9,7 @@ import { ghosts, evidenceTypes } from "./ghostData.js"; // adjust path as needed
 dotenv.config({ path: "../.env" });
 
 const app = express();
-const port = 3001;
+const port = process.env.VITE_BACKEND_PORT || 3001;
 
 // Allow express to parse JSON bodies
 app.use(express.json());
@@ -96,6 +96,7 @@ wss.on('connection', function connection(ws, req) {
             log: [],
             boneFound: false,
             cursedObjectFound: false,
+            finalGhost: null, // <-- add this
           };
         }
         sessions[ws.sessionId].users.push(ws);
@@ -179,11 +180,23 @@ wss.on('connection', function connection(ws, req) {
           ghostName: msg.ghostName,
           state: msg.state,
         });
+
+        // Set/unset finalGhost logic
+        if (msg.state === "circled") {
+          sessions[ws.sessionId].finalGhost = msg.ghostName;
+        } else if (msg.state === "none" || msg.state === "crossed") {
+          // Only unset if the current finalGhost is this ghost
+          if (sessions[ws.sessionId].finalGhost === msg.ghostName) {
+            sessions[ws.sessionId].finalGhost = null;
+          }
+        }
+
         broadcast(ws.sessionId, {
           type: 'ghost_state_update',
           ghostName: msg.ghostName,
           state: msg.state,
           user: msg.user,
+          finalGhost: sessions[ws.sessionId].finalGhost, // broadcast new finalGhost
         });
         console.log(`[WS] Ghost state update: ${msg.user?.username} set ${msg.ghostName} to ${msg.state}`);
         break;
@@ -220,4 +233,4 @@ function broadcast(sessionId, msg) {
   });
 }
 
-console.log('WebSocket server running on ws://localhost:3001/ws');
+console.log(`WebSocket server running on ws://localhost:${port}/ws`);
