@@ -44,16 +44,6 @@ app.post("/api/token", async (req, res) => {
   }
 });
 
-// --- STATIC FRONTEND SERVE ---
-// const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// const clientDist = path.join(__dirname, "../client/dist");
-// app.use(express.static(clientDist));
-
-// --- SPA Fallback (only for non-API routes) ---
-app.get(/^\/(?!api\/).*/, (req, res) => {
-  res.sendFile(path.join(clientDist, "index.html"));
-});
-
 // --- Start HTTP server ---
 const server = app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
@@ -224,6 +214,16 @@ wss.on('connection', function connection(ws, req) {
 
 function broadcast(sessionId, msg) {
   if (!sessions[sessionId]) return;
+  sessions[sessionId].users.forEach(ws => {
+    try {
+      ws.send(JSON.stringify(msg));
+    } catch (e) {
+      console.warn("[WS] Failed to send message:", e);
+    }
+  });
+}
+
+console.log(`WebSocket server running on ws://localhost:${port}/ws`);
   sessions[sessionId].users.forEach(ws => {
     try {
       ws.send(JSON.stringify(msg));
