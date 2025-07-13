@@ -1,0 +1,172 @@
+/* Add ActivityLog-specific styles here */
+
+.activity-log-wrapper {
+  /* Make parent slightly taller and non-scrollable */
+  min-height: 160px;
+  max-height: 220px;
+  height: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  background: none;
+  border-radius: var(--radius);
+  /* Remove overflow here, only scroll inner */
+  overflow: visible;
+}
+
+.activity-log-outer {
+  background: #e7cca8;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 8px #b2222230;
+  padding: var(--spacing-m);
+  margin-bottom: 0;
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  height: 100%;
+  min-height: 140px;
+  /* Remove overflow here */
+}
+
+.activity-log-title-main {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+  letter-spacing: 0.01em;
+  gap: 0.5em;
+  background: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 0;
+  margin-top: 0;
+}
+
+.activity-log-title-icon {
+  font-size: 1.2em;
+  margin-right: 0.3em;
+  color: var(--color-text-primary);
+}
+
+.activity-log-scroll {
+  max-height: 140px;
+  min-height: 70px;
+  overflow-y: auto;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: none;
+  padding: 0;
+  /* Only this element is scrollable */
+  scroll-behavior: smooth;
+  position: relative;
+}
+
+.activity-log {
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  font-family: var(--font-log);
+  color: #2e2e2e;
+  font-size: 1.01rem;
+  font-weight: 500;
+  margin-bottom: 0;
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  list-style: none;
+}
+
+.activity-log li {
+  margin-bottom: var(--spacing-xs);
+  color: #2e2e2e;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  background: rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 2px 4px;
+  transition: background 0.15s;
+}
+
+.activity-log li:last-child {
+  margin-bottom: 0;
+}
+
+.log-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+}
+
+.log-icon {
+  font-size: 1.1em;
+  opacity: 0.85;
+  vertical-align: middle;
+}
+
+.log-circled {
+  color: var(--color-accent-red);
+}
+
+.log-crossed {
+  color: #7a3a3a;
+}
+
+.log-cleared {
+  color: #4a7a3a;
+}
+
+.log-bone {
+  color: #bfa76a;
+}
+
+.log-cursed {
+  color: #7a5a9a;
+}
+
+.log-text {
+  flex: 1;
+  white-space: pre-line;
+}
+
+.activity-log-scroll-top-btn {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  background: #fffbe8;
+  border: 2px solid var(--color-accent-red);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px #b2222230;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.18s, opacity 0.18s;
+  opacity: 0;
+  pointer-events: none;
+  font-size: 1.35em;
+  color: var(--color-accent-red);
+}
+
+.activity-log-scroll-top-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.activity-log-scroll-top-btn:hover,
+.activity-log-scroll-top-btn:focus {
+  background: var(--color-pencil-yellow);
+  color: #fff;
+  border-color: var(--color-pencil-yellow);
+  outline: none;
+}

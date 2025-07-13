@@ -1,0 +1,103 @@
+.ghost-table-popup {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ghost-table-popup-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.18);
+  z-index: 1001;
+}
+.ghost-table-popup-inner {
+  position: relative;
+  z-index: 1002;
+  background: #f5e1b9;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 32px #0003;
+  padding: var(--spacing-l) var(--spacing-xl);
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow: auto;
+  border: 2px solid var(--color-gridline);
+  animation: pop-in 0.18s;
+}
+.ghost-table-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  color: var(--color-accent-red);
+  cursor: pointer;
+  z-index: 1003;
+}
+
+.ghost-table-wrapper {
+  overflow-x: auto;
+  background: #f5e1b9;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px #c2a77d22;
+  padding: var(--spacing-s) var(--spacing-m);
+  margin-top: var(--spacing-xs);
+}
+
+.ghost-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 0.98em;
+  background: transparent;
+}
+
+.ghost-table th,
+.ghost-table td {
+  padding: 4px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--color-gridline);
+}
+
+.ghost-table th {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  background: #f7e6c1;
+  color: var(--color-text-primary);
+  border-top: none;
+}
+
+.ghost-table td {
+  font-family: var(--font-body);
+  background: transparent;
+}
+
+.ghost-table-name {
+  text-align: left;
+  font-weight: 600;
+  font-family: var(--font-heading);
+  color: var(--color-text-primary);
+}
+
+.ghost-table-has-evidence {
+  color: var(--color-accent-red);
+  font-size: 1.1em;
+}
+
+.ghost-table-no-evidence {
+  color: #bbb;
+  font-size: 1.1em;
+}
+
+.ghost-table-icon {
+  font-size: 1.15em;
+  vertical-align: middle;
+  color: var(--color-text-secondary);
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.7); opacity: 0.2; }
+  100% { transform: scale(1); opacity: 1; }
+}

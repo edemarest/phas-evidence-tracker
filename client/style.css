@@ -1,88 +1,224 @@
+/* 1️⃣ Import Google Fonts for handwriting theme */
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand:wght@400;700&family=Shadows+Into+Light&family=Architects+Daughter&display=swap');
+
+/* 2️⃣ Theme Variables */
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  --color-bg-paper: #F5E1B9;
+  --color-gridline: #C2A77D;
+  --color-text-primary: #1a1a1a; /* Darker for better contrast */
+  --color-text-secondary: #444444; /* Slightly darker */
+  --color-accent-red: #B22222;
+  --color-checkbox-fill: #F08080;
+  --color-ghost-gray: #D9D9D6;
+  --color-pencil-yellow: #F4C430;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  --font-heading: 'Patrick Hand', cursive;
+  --font-body: 'Shadows Into Light', cursive;
+  --font-log: 'Architects Daughter', cursive;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --spacing-xs: 4px;
+  --spacing-s: 6px;
+  --spacing-m: 12px;
+  --spacing-l: 18px;
+  --spacing-xl: 32px;
+
+  --radius: 8px;
+  --shadow: 0 2px 4px rgba(44, 34, 22, 0.15);
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
+/* 3️⃣ Global Styles */
 body {
+  background-color: var(--color-bg-paper);
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
   min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  line-height: 1.5;
+  /* Darker, blurred grid background */
+  background-image:
+    repeating-linear-gradient(to bottom, #c2a77d99 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(to right, #c2a77d99 0 1px, transparent 1px 32px);
+  background-size: 32px 32px;
+  background-blend-mode: multiply;
+  filter: blur(0.5px) brightness(0.97);
 }
 
 #app {
-  max-width: 1280px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vanilla:hover {
-  filter: drop-shadow(0 0 2em #f7df1eaa);
+h1, h2, h3 {
+  font-family: var(--font-heading);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  margin-bottom: var(--spacing-m);
 }
 
-button {
+h1 { font-size: 2.2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.2rem; }
+
+.section-title {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-m);
+}
+
+/* 4️⃣ Main App Layout (for App.jsx) */
+.journal-app-main {
+  display: flex;
+  flex-direction: row;
+  min-height: 100vh;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  gap: var(--spacing-l); /* tighter gap */
+}
+
+.journal-page {
+  flex: 1;
+  padding: var(--spacing-l) var(--spacing-m);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-paper);
+  position: relative;
+  min-width: 0;
+  box-shadow: var(--shadow);
+  border-radius: var(--radius);
+  margin: var(--spacing-m) 0;
+  gap: var(--spacing-s); /* reduced vertical gap */
+}
+
+.journal-page.left {
+  border-right: 2px solid var(--color-gridline);
+}
+
+.journal-page.right {
+  /* Ghost watermark can be absolutely positioned here if desired */
+}
+
+/* 5️⃣ Responsive Layout */
+@media (max-width: 900px) {
+  .journal-app-main {
+    flex-direction: column;
+    gap: var(--spacing-l);
+  }
+  .journal-page {
+    border-right: none !important;
+    margin: var(--spacing-m) 0;
+    padding: var(--spacing-l) var(--spacing-s);
+  }
+}
+
+/* 6️⃣ Utility */
+.paper-panel {
+  background: var(--color-bg-paper);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--spacing-l);
+  margin-bottom: var(--spacing-s); /* less space below panels */
+  border: 1.5px solid var(--color-gridline);
+}
+
+.evidence-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25em;
+  margin-right: var(--spacing-m);
+  color: var(--color-text-secondary);
+  width: 1.5em;
+  min-width: 1.5em;
+  vertical-align: middle;
+}
+
+.journal-title {
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.ghost-hunting-team {
+  font-family: var(--font-log), cursive;
+  font-size: 1.05rem;
+  color: var(--color-text-primary);
+  margin-bottom: 0.3em; /* tighter spacing */
+  margin-top: 0.1em;
+  letter-spacing: 0.01em;
+  word-break: break-word;
+}
+
+.status-bar {
+  margin-top: auto;
+  font-size: 0.9em;
+  color: var(--color-text-secondary);
+}
+
+.evidence-section-title {
+  margin-bottom: 0.5em;
+}
+
+.possible-ghosts-title {
+  margin-top: 0;
+  margin-bottom: var(--spacing-xs); /* less space under titles */
+}
+
+.possible-ghosts-list {
+  flex: 0 1 auto;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  margin-bottom: var(--spacing-s); /* less space below possible ghosts */
+}
+
+.activity-log-wrapper {
+  flex: 0 0 auto;
+  max-height: 110px;
+  min-height: 90px;
+  overflow-y: auto;
+  margin-bottom: var(--spacing-s); /* less space below activity log */
+}
+
+.possible-ghosts-header-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-m);
+  margin-bottom: var(--spacing-xs);
+  position: relative;
+}
+
+.final-ghost-inline {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  background: #f9e7c2;
+  border: 1.5px solid var(--color-gridline);
   border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  padding: 4px 14px 4px 10px;
+  font-size: 1.08em;
+  font-family: var(--font-heading);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 4px #b2222230;
+  min-width: 120px;
+  margin-right: 0;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+.final-ghost-label-inline {
+  color: var(--color-text-secondary);
+  font-size: 0.98em;
+  margin-right: 7px;
+  font-weight: 500;
 }
+
+.final-ghost-value-inline {
+  font-size: 1.18em;
+  font-weight: bold;
+  color: var(--color-accent-red);
+  letter-spacing: 0.04em;
+}
+
+/* Remove conflicting .activity-log styles here, keep only in ActivityLog.css */

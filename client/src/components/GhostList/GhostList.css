@@ -1,0 +1,315 @@
+/* Add GhostList-specific styles here */
+
+.ghost-list-container {
+  background: linear-gradient(135deg, #f7e6c1 0%, #e9d3a3 100%);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px #c2a77d33, var(--shadow);
+  padding: var(--spacing-m) var(--spacing-l);
+  margin-bottom: var(--spacing-l);
+  color: var(--color-text-primary);
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible; /* <-- fix: ensure container is not scrollable */
+  position: relative;
+  border: 1.5px solid var(--color-gridline);
+  background-blend-mode: multiply;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.ghost-list-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 columns for 24 ghosts = 8 per col */
+  gap: var(--spacing-m) var(--spacing-l);
+  width: 100%;
+  /* Remove scroll/height constraints */
+  max-height: none;   /* <-- fix: remove scroll/height constraints */
+  overflow: visible;  /* <-- fix: remove scroll */
+}
+
+@media (max-width: 700px) {
+  .ghost-list-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 500px) {
+  .ghost-list-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ghost-list-item {
+  background: rgba(245, 225, 185, 0.18);
+  color: var(--color-text-primary);
+  font-family: var(--font-heading);
+  font-size: 1.08rem;
+  padding: var(--spacing-xs) var(--spacing-s);
+  border-radius: var(--radius);
+  border: 1.5px dashed var(--color-gridline);
+  text-align: center;
+  margin-bottom: 0;
+  box-shadow: 0 1px 4px #c2a77d22;
+  transition: background 0.15s, color 0.15s, border 0.15s;
+  user-select: none;
+  position: relative;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Only one set of styles for circled/crossed ghost states --- */
+.ghost-list-item.circled {
+  border: 2.5px solid var(--color-accent-red);
+  background: rgba(242, 128, 128, 0.13);
+  color: var(--color-accent-red);
+  box-shadow: 0 2px 8px #b2222222;
+  animation: pop-in 0.18s;
+}
+
+.ghost-list-item.crossed {
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+  text-decoration: line-through;
+  background: repeating-linear-gradient(
+    135deg,
+    #f7e6c1 0px,
+    #f7e6c1 6px,
+    #e9d3a3 6px,
+    #e9d3a3 12px
+  );
+}
+
+/* Remove duplicate/extra circle/cross overlays for ghosts */
+.ghost-list-item .ghost-cross,
+.ghost-list-item .ghost-circle {
+  display: none;
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.7); opacity: 0.2; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ghost-list-debug {
+  margin-top: var(--spacing-m);
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+  max-height: 120px;
+  overflow-y: auto;
+  background: none;
+  border: none;
+  border-radius: 0;
+  pointer-events: auto;
+  opacity: 1;
+  animation: none;
+  height: auto;
+}
+@keyframes pop-in {
+  0% { transform: scale(0.7); opacity: 0.2; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ghost-list-debug {
+  margin-top: var(--spacing-m);
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+  max-height: 120px;
+  overflow-y: auto; /* <-- only this debug section is scrollable */
+}
+
+.ghost-list-table-details {
+  margin-top: var(--spacing-m);
+}
+
+.ghost-list-table-wrapper {
+  overflow-x: auto;
+  background: #f5e1b9;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px #c2a77d22;
+  padding: var(--spacing-s) var(--spacing-m);
+  margin-top: var(--spacing-xs);
+}
+
+.ghost-list-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 0.98em;
+  background: transparent;
+}
+
+.ghost-list-table th,
+.ghost-list-table td {
+  padding: 4px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--color-gridline);
+}
+
+.ghost-list-table th {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  background: #f7e6c1;
+  color: var(--color-text-primary);
+  border-top: none;
+}
+
+.ghost-list-table td {
+  font-family: var(--font-body);
+  background: transparent;
+}
+
+.ghost-list-table-name {
+  text-align: left;
+  font-weight: 600;
+  font-family: var(--font-heading);
+  color: var(--color-text-primary);
+}
+
+.ghost-list-table-has-evidence {
+  color: var(--color-accent-red);
+  font-size: 1.1em;
+}
+
+.ghost-list-table-no-evidence {
+  color: #bbb;
+  font-size: 1.1em;
+}
+
+.ghost-table-icon {
+  font-size: 1.15em;
+  vertical-align: middle;
+  color: var(--color-text-secondary);
+}
+
+.ghost-list-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: var(--spacing-xs);
+}
+
+.ghost-list-table-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+  margin-left: 4px;
+  display: flex;
+  align-items: center;
+  font-size: 1.3em;
+  color: var(--color-accent-red);
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+.ghost-list-table-btn:hover,
+.ghost-list-table-btn:focus {
+  background: #f7e6c1;
+}
+
+.ghost-list-table-btn-icon {
+  font-size: 1.3em;
+  vertical-align: middle;
+}
+
+.ghost-list-table-popup {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ghost-list-table-popup-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.18);
+  z-index: 1001;
+}
+.ghost-list-table-popup-inner {
+  position: relative;
+  z-index: 1002;
+  background: #f5e1b9;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 32px #0003;
+  padding: var(--spacing-l) var(--spacing-xl);
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow: auto;
+  border: 2px solid var(--color-gridline);
+  animation: pop-in 0.18s;
+}
+.ghost-list-table-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  color: var(--color-accent-red);
+  cursor: pointer;
+  z-index: 1003;
+}
+
+.ghost-list-tempmsg {
+  margin-top: var(--spacing-xs);
+  color: var(--color-accent-red);
+  background: #fff8e6;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 1em;
+  font-family: var(--font-log);
+  text-align: center;
+  box-shadow: 0 1px 4px #b2222230;
+  animation: pop-in 0.18s;
+}
+
+.ghost-list-item-ruledout {
+  pointer-events: auto !important;
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+}
+
+/* Reduce margin below possible ghosts */
+.possible-ghosts-list {
+  margin-bottom: 0 !important;
+}
+
+.ghost-list-item.user-crossed {
+  position: relative;
+  color: var(--color-text-primary);
+  opacity: 1;
+  text-decoration: none;
+}
+
+.ghost-user-cross-line {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 50%;
+  height: 2.5px;
+  background: var(--color-accent-red);
+  border-radius: 2px;
+  transform: translateY(-50%) rotate(-12deg);
+  pointer-events: none;
+  opacity: 0.85;
+  z-index: 2;
+}
+
+.ghost-list-item.evidence-ruledout,
+.ghost-list-item.ghost-list-item-ruledout {
+  color: var(--color-text-secondary);
+  opacity: 0.6 !important;
+  text-decoration: line-through;
+  background: repeating-linear-gradient(
+    135deg,
+    #f7e6c1 0px,
+    #f7e6c1 6px,
+    #e9d3a3 6px,
+    #e9d3a3 12px
+  );
+  pointer-events: auto !important;
+  cursor: not-allowed !important;
+}

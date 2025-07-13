@@ -1,0 +1,128 @@
+/* Add Journal-specific styles here */
+
+.journal-evidence {
+  margin-bottom: var(--spacing-l);
+  color: var(--color-text-primary); /* Ensure dark text */
+}
+
+.evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.evidence-list.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--spacing-xs) var(--spacing-m);
+}
+
+.evidence-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-s) var(--spacing-m);
+  border-bottom: 1px solid var(--color-gridline);
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.15s;
+  position: relative;
+  min-height: 40px;
+  color: var(--color-text-primary); /* Ensure dark text */
+}
+
+.evidence-row:last-child {
+  border-bottom: none;
+}
+
+.evidence-row:hover {
+  background: rgba(244, 196, 48, 0.08);
+}
+
+.evidence-label {
+  flex: 1;
+  user-select: none;
+}
+
+.evidence-toggle {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.evidence-toggle-blank {
+  border: 2px solid var(--color-gridline);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  transition: border-color 0.2s;
+}
+
+.evidence-toggle-circled {
+  border: 2.5px solid var(--color-accent-red);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  background: var(--color-checkbox-fill);
+  box-shadow: 0 1px 4px #b2222230;
+  position: relative;
+  animation: pop-in 0.18s;
+}
+
+.evidence-toggle-crossed {
+  border: 2px solid var(--color-gridline);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  position: relative;
+}
+
+.evidence-circle {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--color-accent-red);
+  border-radius: 50%;
+  box-sizing: border-box;
+  pointer-events: none;
+  animation: pop-in 0.18s;
+}
+
+.evidence-cross {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.evidence-cross::before,
+.evidence-cross::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 2.5px;
+  background: var(--color-text-primary);
+  border-radius: 2px;
+  left: -1px;
+  top: 6px;
+  transform: rotate(-45deg);
+  box-shadow: 0 1px 2px #b2222230;
+}
+.evidence-cross::after {
+  transform: rotate(45deg);
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.7); opacity: 0.2; }
+  100% { transform: scale(1); opacity: 1; }
+}
