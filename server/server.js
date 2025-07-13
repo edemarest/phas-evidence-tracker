@@ -1,8 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
-import path from "path";
-import { fileURLToPath } from "url";
 import { WebSocketServer } from "ws";
 import { ghosts, evidenceTypes } from "./ghostData.js"; // adjust path as needed
 
@@ -43,16 +41,6 @@ app.post("/api/token", async (req, res) => {
     console.error("Error in /api/token:", err);
     res.status(500).json({ error: "Internal server error", details: err.message });
   }
-});
-
-// --- STATIC FRONTEND SERVE ---
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const clientDist = path.join(__dirname, "../client/dist");
-app.use(express.static(clientDist));
-
-// --- SPA Fallback (only for non-API routes) ---
-app.get(/^\/(?!api\/).*/, (req, res) => {
-  res.sendFile(path.join(clientDist, "index.html"));
 });
 
 // --- Start HTTP server ---
@@ -210,6 +198,18 @@ wss.on('connection', function connection(ws, req) {
   });
 });
 
+function broadcast(sessionId, msg) {
+  if (!sessions[sessionId]) return;
+  sessions[sessionId].users.forEach(ws => {
+    try {
+      ws.send(JSON.stringify(msg));
+    } catch (e) {
+      console.warn("[WS] Failed to send message:", e);
+    }
+  });
+}
+
+console.log('WebSocket server running on ws://localhost:3001/ws');
 function broadcast(sessionId, msg) {
   if (!sessions[sessionId]) return;
   sessions[sessionId].users.forEach(ws => {
