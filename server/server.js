@@ -17,19 +17,21 @@ app.use(express.json());
 // --- API ROUTES ---
 app.post("/api/token", async (req, res) => {
   try {
-    // Debug: log incoming request
+    // Add flushable debug log to ensure logs show up on Render
     console.log("[/api/token] Incoming POST", {
       headers: req.headers,
       body: req.body,
+      time: new Date().toISOString(),
     });
+    process.stdout && process.stdout.write(""); // flush
 
     // Validate input
     if (!req.body.code) {
       console.warn("[/api/token] Missing code in request body");
+      process.stdout && process.stdout.write("");
       return res.status(400).json({ error: "Missing code in request body" });
     }
 
-    // Debug: log outgoing request to Discord
     const tokenBody = {
       client_id: process.env.VITE_DISCORD_CLIENT_ID,
       client_secret: process.env.DISCORD_CLIENT_SECRET,
@@ -38,6 +40,7 @@ app.post("/api/token", async (req, res) => {
       redirect_uri: process.env.VITE_PUBLIC_URL + "/.proxy/oauth2/authorize",
     };
     console.log("[/api/token] Requesting Discord token with body:", tokenBody);
+    process.stdout && process.stdout.write("");
 
     const response = await fetch(`https://discord.com/api/oauth2/token`, {
       method: "POST",
@@ -47,36 +50,40 @@ app.post("/api/token", async (req, res) => {
       body: new URLSearchParams(tokenBody),
     });
 
-    // Debug: log Discord response status
     console.log("[/api/token] Discord token response status:", response.status);
+    process.stdout && process.stdout.write("");
 
     if (!response.ok) {
       const text = await response.text();
       console.error("[/api/token] Discord token exchange failed:", text);
-      // Always return JSON
+      process.stdout && process.stdout.write("");
       return res.status(500).json({ error: "Discord token exchange failed", details: text });
     }
 
-    // Debug: log Discord response body
     const raw = await response.text();
     console.log("[/api/token] Discord token response raw body:", raw);
+    process.stdout && process.stdout.write("");
 
     let data;
     try {
       data = JSON.parse(raw);
     } catch (err) {
       console.error("[/api/token] Failed to parse Discord response as JSON:", err, raw);
+      process.stdout && process.stdout.write("");
       return res.status(500).json({ error: "Discord response not JSON", details: raw });
     }
 
     if (!data.access_token) {
       console.warn("[/api/token] No access_token in Discord response", data);
+      process.stdout && process.stdout.write("");
       return res.status(500).json({ error: "No access_token in Discord response", details: data });
     }
     console.log("[/api/token] Success, sending access_token to client");
+    process.stdout && process.stdout.write("");
     res.json({ access_token: data.access_token });
   } catch (err) {
     console.error("[/api/token] Error in /api/token:", err);
+    process.stdout && process.stdout.write("");
     res.status(500).json({ error: "Internal server error", details: err.message });
   }
 });
