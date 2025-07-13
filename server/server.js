@@ -14,7 +14,19 @@ app.use(express.json());
 
 // --- API ROUTES ---
 app.post("/api/token", async (req, res) => {
+  console.log("[/api/token] Incoming request", {
+    method: req.method,
+    url: req.originalUrl,
+    headers: req.headers,
+    body: req.body,
+    time: new Date().toISOString(),
+  });
   try {
+    if (!req.body || !req.body.code) {
+      console.warn("[/api/token] Missing code in request body");
+      return res.status(400).json({ error: "Missing code in request body" });
+    }
+
     const response = await fetch(`https://discord.com/api/oauth2/token`, {
       method: "POST",
       headers: {
@@ -31,14 +43,28 @@ app.post("/api/token", async (req, res) => {
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("Discord token exchange failed:", text);
+      console.error("[/api/token] Discord token exchange failed:", text);
+      // Always return valid JSON
       return res.status(500).json({ error: "Discord token exchange failed", details: text });
     }
 
-    const { access_token } = await response.json();
-    res.send({ access_token });
+    let data;
+    try {
+      data = await response.json();
+    } catch (err) {
+      const text = await response.text();
+      console.error("[/api/token] Failed to parse Discord response as JSON:", err, text);
+      return res.status(500).json({ error: "Discord response not JSON", details: text });
+    }
+
+    if (!data.access_token) {
+      console.warn("[/api/token] No access_token in Discord response", data);
+      return res.status(500).json({ error: "No access_token in Discord response", details: data });
+    }
+
+    res.json({ access_token: data.access_token });
   } catch (err) {
-    console.error("Error in /api/token:", err);
+    console.error("[/api/token] Error in /api/token:", err);
     res.status(500).json({ error: "Internal server error", details: err.message });
   }
 });

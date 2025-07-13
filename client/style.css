@@ -1,6 +1,5 @@
-/* 1️⃣ Import Google Fonts for handwriting theme */
-@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand:wght@400;700&family=Shadows+Into+Light&family=Architects+Daughter&display=swap');
 
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand:wght@400;700&family=Shadows+Into+Light&family=Architects+Daughter&display=swap');
 /* 2️⃣ Theme Variables */
 :root {
   --color-bg-paper: #F5E1B9;
@@ -11,7 +10,9 @@
   --color-checkbox-fill: #F08080;
   --color-ghost-gray: #D9D9D6;
   --color-pencil-yellow: #F4C430;
-
+  --font-heading: 'Segoe UI', 'Arial', sans-serif;
+  --font-body: 'Segoe UI', 'Arial', sans-serif;
+  --font-log: 'Segoe UI', 'Arial', sans-serif;
   --font-heading: 'Patrick Hand', cursive;
   --font-body: 'Shadows Into Light', cursive;
   --font-log: 'Architects Daughter', cursive;
