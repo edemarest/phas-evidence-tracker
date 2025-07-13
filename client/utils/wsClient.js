@@ -19,7 +19,7 @@ export function createWSClient(sessionId, user, onMessage) {
 
   const wsUrl = isDiscordActivity()
     ? `wss://${window.location.hostname}/.proxy/ws`
-    : "ws://localhost:3001/ws"; // <-- use port 3001 for dev
+    : import.meta.env.VITE_WS_URL || "ws://localhost:3001/ws"; // <-- use port 3001 for dev
 
   let ws;
   try {
