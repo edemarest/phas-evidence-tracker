@@ -45,9 +45,9 @@ app.post("/api/token", async (req, res) => {
 });
 
 // --- STATIC FRONTEND SERVE ---
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const clientDist = path.join(__dirname, "../client/dist");
-app.use(express.static(clientDist));
+// const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// const clientDist = path.join(__dirname, "../client/dist");
+// app.use(express.static(clientDist));
 
 // --- SPA Fallback (only for non-API routes) ---
 app.get(/^\/(?!api\/).*/, (req, res) => {
