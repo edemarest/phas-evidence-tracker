@@ -231,6 +231,6 @@ console.log(`WebSocket server running on ws://localhost:${port}/ws`);
       console.warn("[WS] Failed to send message:", e);
     }
   });
-}
+
 
 console.log(`WebSocket server running on ws://localhost:${port}/ws`);
