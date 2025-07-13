@@ -198,17 +198,6 @@ wss.on('connection', function connection(ws, req) {
   });
 });
 
-function broadcast(sessionId, msg) {
-  if (!sessions[sessionId]) return;
-  sessions[sessionId].users.forEach(ws => {
-    try {
-      ws.send(JSON.stringify(msg));
-    } catch (e) {
-      console.warn("[WS] Failed to send message:", e);
-    }
-  });
-}
-
 console.log('WebSocket server running on ws://localhost:3001/ws');
 function broadcast(sessionId, msg) {
   if (!sessions[sessionId]) return;
@@ -220,5 +209,3 @@ function broadcast(sessionId, msg) {
     }
   });
 }
-
-console.log('WebSocket server running on ws://localhost:3001/ws');
