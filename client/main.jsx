@@ -18,11 +18,11 @@ async function renderAppWithUser(user) {
 }
 
 if (window.location.search.includes("frame_id")) {
-  // Discord embedded mode
   (async () => {
     let auth = null;
     let discordSdk = null;
     let user = null;
+    let sessionId = "default-session";
     try {
       discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
       await discordSdk.ready();
@@ -50,7 +50,17 @@ if (window.location.search.includes("frame_id")) {
       auth = await discordSdk.commands.authenticate({ access_token });
       if (!auth || !auth.user) throw new Error("Discord authentication failed");
       user = auth.user;
-      renderAppWithUser(user);
+
+      // Get Discord context for session scoping
+      let context = {};
+      try {
+        context = await discordSdk.commands.getContext();
+      } catch (e) {
+        console.warn("Could not get Discord context, using default session.");
+      }
+      sessionId = context.channelId || context.activityInstanceId || "default-session";
+
+      renderAppWithUser({ ...user, sessionId });
     } catch (err) {
       console.error("[DiscordSDK] Discord authentication failed:", err);
       root.render(
@@ -78,8 +88,9 @@ if (window.location.search.includes("frame_id")) {
       }
     }
   }
+  // Pass sessionId as part of user object for consistency
   if (user) {
-    renderAppWithUser(user);
+    renderAppWithUser({ ...user, sessionId: "default-session" });
   } else {
     root.render(
       <div style={{ padding: 32, color: "red" }}>

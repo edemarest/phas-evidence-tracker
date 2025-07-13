@@ -28,6 +28,9 @@ function filterGhosts(evidenceState, ghosts) {
 }
 
 export default function App({ user }) {
+  // Use sessionId from user object if present
+  const sessionId = user.sessionId || "default-session";
+
   const [state, setState] = useState(null);
   const [connected, setConnected] = useState(false);
   const [ghostStates, setGhostStates] = useState({});
@@ -36,8 +39,6 @@ export default function App({ user }) {
   const [finalGhost, setFinalGhost] = useState("?");
   const [mobilePage, setMobilePage] = useState("left"); // "left" or "right"
   const wsRef = useRef(null);
-
-  const sessionId = "default-session";
 
   useEffect(() => {
     if (!user) return;
