@@ -37,7 +37,17 @@ if (window.location.search.includes("frame_id")) {
       });
 
       // Retrieve an access_token from your activity's server
-      let tokenUrl = "/.proxy/api/token";
+      let tokenUrl;
+      if (window.location.hostname.endsWith("onrender.com")) {
+        // On Render Static Site, use /api/token (Render proxies this to backend)
+        tokenUrl = "/api/token";
+      } else if (window.location.search.includes("frame_id")) {
+        // In Discord Activity, use /.proxy/api/token
+        tokenUrl = "/.proxy/api/token";
+      } else {
+        // Local dev or fallback
+        tokenUrl = "/api/token";
+      }
       const response = await fetch(tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
