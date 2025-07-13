@@ -15,7 +15,10 @@ const port = process.env.VITE_BACKEND_PORT || 3001;
 app.use(express.json());
 
 // --- API ROUTES ---
-app.post("/api/token", async (req, res) => {
+app.post("/api/token", tokenHandler);
+app.post("/.proxy/api/token", tokenHandler);
+
+function tokenHandler(req, res) {
   try {
     // Add flushable debug log to ensure logs show up on Render
     console.log("[/api/token] Incoming POST", {
@@ -93,7 +96,7 @@ app.post("/api/token", async (req, res) => {
     process.stdout && process.stdout.write("");
     res.status(500).json({ error: "Internal server error", details: err.message });
   }
-});
+}
 
 // --- Start HTTP server ---
 const server = app.listen(port, () => {

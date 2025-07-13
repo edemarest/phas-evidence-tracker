@@ -19,6 +19,13 @@ export default defineConfig({
         secure: false,
         ws: true,
       },
+      '/.proxy/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+        rewrite: path => path.replace(/^\/\.proxy\/api/, '/api'),
+      },
     },
   },
 });
