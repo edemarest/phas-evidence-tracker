@@ -55,9 +55,16 @@ app.post("/api/token", async (req, res) => {
 
     if (!response.ok) {
       const text = await response.text();
+      let errorObj = {};
+      try {
+        errorObj = JSON.parse(text);
+      } catch {}
+      const isInvalidGrant = errorObj.error === "invalid_grant";
       console.error("[/api/token] Discord token exchange failed:", text);
       process.stdout && process.stdout.write("");
-      return res.status(500).json({ error: "Discord token exchange failed", details: text });
+      return res
+        .status(isInvalidGrant ? 400 : 500)
+        .json({ error: "Discord token exchange failed", details: text });
     }
 
     const raw = await response.text();

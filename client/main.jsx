@@ -43,10 +43,30 @@ if (window.location.search.includes("frame_id")) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       });
-      if (!response.ok) {
-        throw new Error(`Token fetch failed: ${response.status} ${response.statusText}`);
+
+      // Debug: log the response for troubleshooting
+      let debugText = "";
+      try {
+        debugText = await response.clone().text();
+        console.log("[DiscordSDK] /api/token raw response:", debugText);
+      } catch (e) {
+        console.warn("[DiscordSDK] Could not read /api/token response as text", e);
       }
-      const { access_token } = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`Token fetch failed: ${response.status} ${response.statusText}\nRaw: ${debugText}`);
+      }
+
+      let access_token;
+      try {
+        const json = await response.json();
+        access_token = json.access_token;
+      } catch (err) {
+        throw new Error(
+          `Failed to parse /api/token response as JSON: ${err.message}\nRaw: ${debugText}`
+        );
+      }
+
       auth = await discordSdk.commands.authenticate({ access_token });
       if (!auth || !auth.user) throw new Error("Discord authentication failed");
       user = auth.user;
