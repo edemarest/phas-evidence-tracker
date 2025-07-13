@@ -196,41 +196,31 @@ wss.on('connection', function connection(ws, req) {
     }
   });
 
-  ws.on('close', function() {
-    if (ws.sessionId && sessions[ws.sessionId]) {
-      sessions[ws.sessionId].users = sessions[ws.sessionId].users.filter(u => u !== ws);
-      broadcast(ws.sessionId, {
-        type: 'user_left',
-        user: ws.user,
-      });
-      if (sessions[ws.sessionId].users.length === 0) {
-        delete sessions[ws.sessionId];
-        console.log(`[WS] Session ${ws.sessionId} deleted (empty)`);
+    ws.on('close', function() {
+      if (ws.sessionId && sessions[ws.sessionId]) {
+        sessions[ws.sessionId].users = sessions[ws.sessionId].users.filter(u => u !== ws);
+        broadcast(ws.sessionId, {
+          type: 'user_left',
+          user: ws.user,
+        });
+        if (sessions[ws.sessionId].users.length === 0) {
+          delete sessions[ws.sessionId];
+          console.log(`[WS] Session ${ws.sessionId} deleted (empty)`);
+        }
       }
-    }
-    console.log(`[WS] Connection closed for user: ${ws.user?.username}`);
-  });
-});
-
-function broadcast(sessionId, msg) {
-  if (!sessions[sessionId]) return;
-  sessions[sessionId].users.forEach(ws => {
-    try {
-      ws.send(JSON.stringify(msg));
-    } catch (e) {
-      console.warn("[WS] Failed to send message:", e);
-    }
-  });
-}
-
-console.log(`WebSocket server running on ws://localhost:${port}/ws`);
-  sessions[sessionId].users.forEach(ws => {
-    try {
-      ws.send(JSON.stringify(msg));
-    } catch (e) {
-      console.warn("[WS] Failed to send message:", e);
-    }
+      console.log(`[WS] Connection closed for user: ${ws.user?.username}`);
+    });
   });
 
+  function broadcast(sessionId, msg) {
+    if (!sessions[sessionId]) return;
+    sessions[sessionId].users.forEach(ws => {
+      try {
+        ws.send(JSON.stringify(msg));
+      } catch (e) {
+        console.warn("[WS] Failed to send message:", e);
+      }
+    });
+  }
 
-console.log(`WebSocket server running on ws://localhost:${port}/ws`);
+  console.log(`WebSocket server running on ws://localhost:${port}/ws`);
