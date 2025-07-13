@@ -14,8 +14,6 @@ node_modules
 
 # Modules + built files
 node_modules
-dist
-dist-ssr
 *.local
 
 # Editor directories and files
