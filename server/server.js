@@ -17,6 +17,11 @@ app.use(express.json());
 // --- API ROUTES ---
 app.post("/api/token", async (req, res) => {
   try {
+    // Validate input
+    if (!req.body.code) {
+      return res.status(400).json({ error: "Missing code in request body" });
+    }
+
     const response = await fetch(`https://discord.com/api/oauth2/token`, {
       method: "POST",
       headers: {
@@ -27,17 +32,22 @@ app.post("/api/token", async (req, res) => {
         client_secret: process.env.DISCORD_CLIENT_SECRET,
         grant_type: "authorization_code",
         code: req.body.code,
+        redirect_uri: process.env.VITE_PUBLIC_URL + "/.proxy/oauth2/authorize", // Discord requires this to match
       }),
     });
 
     if (!response.ok) {
       const text = await response.text();
       console.error("Discord token exchange failed:", text);
+      // Always return JSON
       return res.status(500).json({ error: "Discord token exchange failed", details: text });
     }
 
-    const { access_token } = await response.json();
-    res.send({ access_token });
+    const data = await response.json();
+    if (!data.access_token) {
+      return res.status(500).json({ error: "No access_token in Discord response", details: data });
+    }
+    res.json({ access_token: data.access_token });
   } catch (err) {
     console.error("Error in /api/token:", err);
     res.status(500).json({ error: "Internal server error", details: err.message });
