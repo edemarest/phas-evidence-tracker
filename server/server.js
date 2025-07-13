@@ -278,3 +278,9 @@ wss.on('connection', function connection(ws, req) {
   }
 
   console.log(`WebSocket server running on ws://localhost:${port}/ws`);
+
+// Add this at the end, after all other routes:
+app.use((req, res, next) => {
+  console.warn(`[404] ${req.method} ${req.originalUrl} from ${req.ip}`);
+  res.status(404).json({ error: "Not found" });
+});
