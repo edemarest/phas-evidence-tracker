@@ -8,12 +8,14 @@ function isDiscordActivity() {
 
 function getApiBase() {
   if (isDiscordActivity()) {
-    // Only use the proxy path, NOT the full backend URL
+    console.log("[getApiBase] Discord Activity detected, using /.proxy/api");
     return "/.proxy/api";
   }
   if (import.meta.env.MODE === "production") {
+    console.log("[getApiBase] Production web, using full backend URL");
     return "https://phas-evidence-backend.onrender.com/api";
   }
+  console.log("[getApiBase] Dev web, using /api");
   return "/api";
 }
 

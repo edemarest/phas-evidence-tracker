@@ -15,12 +15,14 @@ function isDiscordActivity() {
 // Always resolve to correct API path for token
 function getTokenUrl() {
   if (isDiscordActivity()) {
-    // Only use the proxy path, NOT the full backend URL
+    console.log("[getTokenUrl] Discord Activity detected, using /.proxy/api/token");
     return "/.proxy/api/token";
   }
   if (import.meta.env.MODE === "production") {
+    console.log("[getTokenUrl] Production web, using full backend URL");
     return "https://phas-evidence-backend.onrender.com/api/token";
   }
+  console.log("[getTokenUrl] Dev web, using /api/token");
   return "/api/token";
 }
 
@@ -142,10 +144,6 @@ if (isDiscordActivity()) {
     root.render(
       <div style={{ padding: 32, color: "red" }}>
         No username provided. Please reload and enter a username.
-      </div>
-    );
-  }
-}
       </div>
     );
   }
