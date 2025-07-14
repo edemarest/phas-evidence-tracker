@@ -108,6 +108,8 @@ function getDefaultGhostStates() {
   return state;
 }
 
+let journalCounter = 1;
+
 function assignSessionForJoin() {
   const sessionIds = Object.keys(sessions)
     .filter(id => id.startsWith("journal-"))
@@ -175,7 +177,12 @@ apiRouter.post("/session/:sessionId/action", (req, res) => {
 
 // --- Session join endpoint (returns sessionId and initial state) ---
 apiRouter.post("/session/join", (req, res) => {
-  const { user, sessionId } = req.body;
+  console.log("[/session/join] Incoming body:", req.body);
+  const { user, sessionId } = req.body || {};
+  if (!user || !user.id) {
+    console.warn("[/session/join] Missing user or user.id in request body:", req.body);
+    return res.status(400).json({ error: "Missing user or user.id in request body" });
+  }
   let requestedSessionId = sessionId;
   if (requestedSessionId === "default-session" || !requestedSessionId) {
     requestedSessionId = assignSessionForJoin();
@@ -286,7 +293,6 @@ app.use((req, res) => {
 app.listen(port, "0.0.0.0", () => {
   console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
 });
-let journalCounter = 1;
 
 const SESSION_GRACE_PERIOD_MS = 15000; // 15 seconds grace period
 

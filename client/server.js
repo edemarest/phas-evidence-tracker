@@ -23,6 +23,15 @@ if (process.env.NODE_ENV !== "production") {
       ws: true
     })
   );
+  // Add this for Discord Activity simulation:
+  app.use(
+    "/.proxy/api",
+    createProxyMiddleware({
+      target: "http://localhost:3001",
+      changeOrigin: true,
+      ws: true
+    })
+  );
 }
 
 // Fallback SPA routing
