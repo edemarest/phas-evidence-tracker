@@ -113,7 +113,17 @@ function getDefaultGhostStates() {
 apiRouter.get("/session/:sessionId/state", (req, res) => {
   const sessionId = "main";
   if (!sessions[sessionId]) {
-    return res.status(404).json({ error: "Session not found" });
+    // Auto-create the main session if missing
+    sessions[sessionId] = {
+      evidenceState: getDefaultEvidenceState(),
+      ghostStates: getDefaultGhostStates(),
+      users: [],
+      userInfos: [],
+      log: [],
+      boneFound: false,
+      cursedObjectFound: false,
+    };
+    console.log("[/session/state] Auto-created main session");
   }
   const stateToSend = { ...sessions[sessionId] };
   stateToSend.users = undefined;
