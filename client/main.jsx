@@ -14,11 +14,17 @@ function isDiscordActivity() {
 
 // Always resolve to correct API path for token
 function getTokenUrl() {
-  // Accept /token, /api/token, or /.proxy/api/token
+  // Use full backend URL in production
+  if (import.meta.env.MODE === "production") {
+    if (isDiscordActivity()) {
+      return "https://phas-evidence-backend.onrender.com/.proxy/api/token";
+    }
+    return "https://phas-evidence-backend.onrender.com/api/token";
+  }
+  // In dev, use relative path
   if (isDiscordActivity()) {
     return "/.proxy/api/token";
   }
-  // In dev or prod web, always use /api/token
   return "/api/token";
 }
 
