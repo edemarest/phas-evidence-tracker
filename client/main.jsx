@@ -6,6 +6,13 @@ import { DiscordSDK } from "@discord/embedded-app-sdk";
 
 const root = createRoot(document.getElementById("app"));
 
+// Global intercept for *all* fetch calls to see if anything is using wrong path
+const origFetch = window.fetch;
+window.fetch = async (...args) => {
+  console.debug("[GLOBAL FETCH] Called with:", ...args);
+  return origFetch(...args);
+};
+
 let hasRendered = false;
 async function renderAppWithUser(user) {
   if (hasRendered) return;
@@ -17,7 +24,24 @@ async function renderAppWithUser(user) {
   );
 }
 
-if (window.location.search.includes("frame_id")) {
+// Determine if we're running inside Discord Activity
+function isDiscordActivity() {
+  return window.location.search.includes("frame_id") ||
+         window.location.hostname.endsWith("discordsays.com");
+}
+
+// Choose correct token URL depending on environment
+function getTokenUrl() {
+  if (isDiscordActivity()) {
+    console.debug("[Env] Detected Discord Activity");
+    return "/.proxy/api/token";
+  } else {
+    console.debug("[Env] Detected Local Dev");
+    return "/api/token";
+  }
+}
+
+if (isDiscordActivity()) {
   // Discord embedded mode
   (async () => {
     let auth = null;
@@ -27,7 +51,8 @@ if (window.location.search.includes("frame_id")) {
       discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
       await discordSdk.ready();
 
-      // Authorize with Discord Client
+      console.debug("[DiscordSDK] SDK ready, starting authorize()...");
+
       const { code } = await discordSdk.commands.authorize({
         client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
         response_type: "code",
@@ -36,12 +61,10 @@ if (window.location.search.includes("frame_id")) {
         scope: ["identify", "guilds", "applications.commands"],
       });
 
-      // Debug: log the code received from Discord
-      console.debug("[DiscordSDK] Received code from Discord:", code);
+      console.debug("[DiscordSDK] Received code:", code);
 
-      // Retrieve an access_token from your activity's server
-      // Use the correct proxy path for Discord Activity
-      let tokenUrl = "/.proxy/api/token"; // <-- hardcoded relative path
+      // Choose correct token path
+      const tokenUrl = getTokenUrl();
       console.debug("[DiscordSDK] Fetching token from:", tokenUrl);
 
       const response = await fetch(tokenUrl, {
@@ -50,19 +73,23 @@ if (window.location.search.includes("frame_id")) {
         body: JSON.stringify({ code }),
       });
 
-      // Debug: log the response status
-      console.debug("[DiscordSDK] Token fetch response status:", response.status);
+      console.debug("[DiscordSDK] Token fetch response:", response.status);
 
       if (!response.ok) {
         const text = await response.text();
         console.error("[DiscordSDK] Token fetch failed:", response.status, text);
         throw new Error(`Token fetch failed: ${response.status} ${response.statusText}`);
       }
+
       const json = await response.json();
       console.debug("[DiscordSDK] Token fetch response JSON:", json);
+
       const { access_token } = json;
       auth = await discordSdk.commands.authenticate({ access_token });
+
       if (!auth || !auth.user) throw new Error("Discord authentication failed");
+
+      console.debug("[DiscordSDK] Authentication success, user:", auth.user);
       user = auth.user;
       renderAppWithUser(user);
     } catch (err) {
@@ -77,13 +104,14 @@ if (window.location.search.includes("frame_id")) {
   })();
 } else {
   // Local dev mode
+  console.debug("[Main] Starting in local dev mode");
   let user = null;
   const params = new URLSearchParams(window.location.search);
   const username = params.get("user");
+
   if (username) {
     user = { username, id: username };
   } else {
-    // Only prompt ONCE, and only if not already set
     if (!window.__phasmo_user_prompted) {
       window.__phasmo_user_prompted = true;
       const input = window.prompt("Enter a test username for this session:", "");
@@ -92,6 +120,7 @@ if (window.location.search.includes("frame_id")) {
       }
     }
   }
+
   if (user) {
     renderAppWithUser(user);
   } else {
