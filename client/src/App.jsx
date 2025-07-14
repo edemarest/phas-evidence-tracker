@@ -294,13 +294,14 @@ export default function App({ user }) {
   if (!user) {
     return <div style={{ padding: 32, color: "red" }}>No user found. Please reload and enter a username.</div>;
   }
-  // Comment out error and loading screens for style editing
-  // if (wsError) {
-  //   return <div style={{ padding: 32, color: "red" }}>{wsError}</div>;
-  // }
-  // if (!effectiveState) {
-  //   return <div style={{ padding: 32 }}>Connecting to session...</div>;
-  // }
+
+  // Prevent null dereference: show loading or error if effectiveState is not ready
+  if (!effectiveState) {
+    if (wsError) {
+      return <div style={{ padding: 32, color: "red" }}>{wsError}</div>;
+    }
+    return <div style={{ padding: 32 }}>Connecting to session...</div>;
+  }
 
   // For now, users list is not tracked in state, so just show current user
   const users = [{ username: user.username }];
