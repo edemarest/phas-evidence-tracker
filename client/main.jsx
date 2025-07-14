@@ -17,6 +17,7 @@ let hasRendered = false;
 async function renderAppWithUser(user) {
   if (hasRendered) return;
   hasRendered = true;
+  console.log("[main.jsx] Rendering App with user:", user);
   root.render(
     <React.StrictMode>
       <App user={user} />

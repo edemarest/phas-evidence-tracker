@@ -1,6 +1,9 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  console.log("[VITE CONFIG] VITE_WS_URL =", env.VITE_WS_URL);
+
   // Mode is "development" or "production"
   const isDev = mode === 'development';
 

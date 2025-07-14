@@ -12,7 +12,7 @@ dotenv.config({ path: "../.env" });
 
 // --- Initialize Express app ---
 const app = express();
-const port = 3001;
+const port = 3001; // <-- change from 3001 to 4001
 
 // --- Middleware ---
 app.use(express.json());
@@ -235,6 +235,7 @@ wss.on("listening", () => {
 let sessions = {};
 let journalCounter = 1;
 
+// Store user info separately for each session
 function getDefaultEvidenceState() {
   const state = {};
   evidenceTypes.forEach(e => { state[e] = 'blank'; });
@@ -261,6 +262,7 @@ function assignSessionForJoin() {
     evidenceState: getDefaultEvidenceState(),
     ghostStates: getDefaultGhostStates(),
     users: [],
+    userInfos: [], // Store user info separately
     log: [],
     boneFound: false,
     cursedObjectFound: false,
@@ -268,12 +270,19 @@ function assignSessionForJoin() {
   return newId;
 }
 
+const SESSION_GRACE_PERIOD_MS = 15000; // 15 seconds grace period
+
+// Track grace period timers for empty sessions
+let sessionGraceTimers = {};
+
 wss.on('connection', (ws, req) => {
   ws.sessionId = null;
   ws.user = null;
   console.log(`[WS] New connection from ${req.socket.remoteAddress}`);
 
   ws.on('message', (message) => {
+    console.log("[WS] Received message:", message); // <-- Add this line
+
     let msg;
     try {
       msg = JSON.parse(message);
@@ -301,6 +310,9 @@ wss.on('connection', (ws, req) => {
       case 'ghost_state_update':
         handleGhostStateUpdate(ws, msg);
         break;
+      case 'reset_investigation':
+        handleResetInvestigation(ws, msg);
+        break;
       default:
         console.warn("[WS] Unknown message type:", msg.type);
     }
@@ -311,7 +323,10 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+// --- Store { ws, user } objects in users array ---
 function handleJoin(ws, msg) {
+  console.log("[WS] handleJoin called with:", msg);
+
   let requestedSessionId = msg.sessionId;
   ws.user = msg.user;
 
@@ -325,6 +340,7 @@ function handleJoin(ws, msg) {
       evidenceState: getDefaultEvidenceState(),
       ghostStates: getDefaultGhostStates(),
       users: [],
+      userInfos: [], // Store user info separately
       log: [],
       boneFound: false,
       cursedObjectFound: false,
@@ -334,8 +350,15 @@ function handleJoin(ws, msg) {
   if (sessions[ws.sessionId].users.length >= 4) {
     ws.sessionId = assignSessionForJoin();
   }
+  sessions[ws.sessionId].users.push({ ws, user: ws.user });
+  sessions[ws.sessionId].userInfos.push(ws.user);
 
-  sessions[ws.sessionId].users.push(ws);
+  // Cancel grace timer if present
+  if (sessionGraceTimers[ws.sessionId]) {
+    clearTimeout(sessionGraceTimers[ws.sessionId]);
+    delete sessionGraceTimers[ws.sessionId];
+  }
+
   ws.send(JSON.stringify({
     type: 'sync_state',
     state: sessions[ws.sessionId],
@@ -348,113 +371,60 @@ function handleJoin(ws, msg) {
   console.log(`[WS] User joined: ${ws.user?.username} (session: ${ws.sessionId})`);
 }
 
-function handleEvidenceUpdate(ws, msg) {
-  if (!validateSession(ws)) return;
-  sessions[ws.sessionId].evidenceState[msg.evidence] = msg.state;
-  sessions[ws.sessionId].log.push({
-    user: msg.user,
-    actionType: "evidence_update",
-    evidence: msg.evidence,
-    state: msg.state,
-  });
-  broadcast(ws.sessionId, {
-    type: 'evidence_update',
-    evidence: msg.evidence,
-    state: msg.state,
-    user: msg.user,
-  });
-}
-
-function handleLogAction(ws, msg) {
-  if (!validateSession(ws)) return;
-  sessions[ws.sessionId].log.push({
-    user: msg.user,
-    action: msg.action,
-    timestamp: Date.now(),
-  });
-  broadcast(ws.sessionId, {
-    type: 'log_action',
-    action: msg.action,
-    user: msg.user,
-  });
-}
-
-function handleBoneUpdate(ws, msg) {
-  if (!validateSession(ws)) return;
-  sessions[ws.sessionId].boneFound = msg.found;
-  sessions[ws.sessionId].log.push({
-    user: msg.user,
-    actionType: "bone_update",
-    found: msg.found,
-  });
-  broadcast(ws.sessionId, {
-    type: 'bone_update',
-    found: msg.found,
-    user: msg.user,
-  });
-}
-
-function handleCursedObjectUpdate(ws, msg) {
-  if (!validateSession(ws)) return;
-  sessions[ws.sessionId].cursedObjectFound = msg.found;
-  sessions[ws.sessionId].log.push({
-    user: msg.user,
-    actionType: "cursed_object_update",
-    found: msg.found,
-  });
-  broadcast(ws.sessionId, {
-    type: 'cursed_object_update',
-    found: msg.found,
-    user: msg.user,
-  });
-}
-
-function handleGhostStateUpdate(ws, msg) {
-  if (!validateSession(ws)) return;
-  sessions[ws.sessionId].ghostStates[msg.ghostName] = msg.state;
-  sessions[ws.sessionId].log.push({
-    user: msg.user,
-    actionType: "ghost_state_update",
-    ghostName: msg.ghostName,
-    state: msg.state,
-  });
-  broadcast(ws.sessionId, {
-    type: 'ghost_state_update',
-    ghostName: msg.ghostName,
-    state: msg.state,
-    user: msg.user,
-  });
-}
-
+// --- Remove user info on disconnect ---
 function handleDisconnect(ws) {
   if (ws.sessionId && sessions[ws.sessionId]) {
-    sessions[ws.sessionId].users = sessions[ws.sessionId].users.filter(u => u !== ws);
+    // Remove from users array
+    sessions[ws.sessionId].users = sessions[ws.sessionId].users.filter(u => u.ws !== ws);
+    // Remove from userInfos array
+    sessions[ws.sessionId].userInfos = sessions[ws.sessionId].userInfos.filter(u => u.id !== ws.user?.id);
+
     broadcast(ws.sessionId, {
       type: 'user_left',
       user: ws.user,
     });
+
     if (sessions[ws.sessionId].users.length === 0) {
-      delete sessions[ws.sessionId];
-      console.log(`[WS] Session ${ws.sessionId} deleted (empty)`);
+      // Start grace period timer before deleting session
+      if (!sessionGraceTimers[ws.sessionId]) {
+        sessionGraceTimers[ws.sessionId] = setTimeout(() => {
+          delete sessions[ws.sessionId];
+          delete sessionGraceTimers[ws.sessionId];
+          console.log(`[WS] Session ${ws.sessionId} deleted (empty after grace period)`);
+        }, SESSION_GRACE_PERIOD_MS);
+        console.log(`[WS] Session ${ws.sessionId} is empty, will delete in ${SESSION_GRACE_PERIOD_MS / 1000}s if no one rejoins.`);
+      }
     }
   }
   console.log(`[WS] Connection closed for user: ${ws.user?.username}`);
 }
 
-function validateSession(ws) {
-  return ws.sessionId && sessions[ws.sessionId];
-}
-
+// --- Broadcast: remove closed sockets from users array ---
 function broadcast(sessionId, msg) {
   if (!sessions[sessionId]) return;
-  sessions[sessionId].users.forEach(ws => {
+  const usersArr = sessions[sessionId].users;
+  // Only keep users whose ws.send does not throw
+  sessions[sessionId].users = usersArr.filter(({ ws }) => {
     try {
       ws.send(JSON.stringify(msg));
+      return true;
     } catch (e) {
-      console.warn("[WS] Failed to send message:", e);
+      console.warn("[WS] Failed to send message, removing socket:", e);
+      return false;
     }
   });
+  // Also clean up userInfos for closed sockets
+  const activeUserIds = new Set(sessions[sessionId].users.map(u => u.user?.id));
+  sessions[sessionId].userInfos = sessions[sessionId].userInfos.filter(u => activeUserIds.has(u.id));
 }
+
+// --- Prevent Express from handling /ws route (WebSocket only) ---
+app._router.stack.forEach((layer) => {
+  if (layer.route && layer.route.path === "/ws") {
+    console.error("[FATAL] Express route for /ws detected! Remove any app.get('/ws'), app.post('/ws'), or app.use('/ws'). WebSocket upgrades will not work.");
+    throw new Error("Express route for /ws detected. Remove it to allow WebSocket upgrades.");
+  }
+});
 
 app.post("/api/ws", (req, res) => {
   console.log("[/api/ws] Incoming Discord proxy POST");
@@ -505,3 +475,69 @@ app.post("/api/ws", (req, res) => {
 });
 
 console.log('WebSocket server running on ws://localhost:3001/ws');
+
+server.on('upgrade', (req, socket, head) => {
+  console.log("[Server] HTTP upgrade event for WebSocket");
+});
+
+// --- Prevent Express from handling /ws route (WebSocket only) ---
+app._router.stack.forEach((layer) => {
+  if (layer.route && layer.route.path === "/ws") {
+    console.error("[FATAL] Express route for /ws detected! Remove any app.get('/ws'), app.post('/ws'), or app.use('/ws'). WebSocket upgrades will not work.");
+    throw new Error("Express route for /ws detected. Remove it to allow WebSocket upgrades.");
+  }
+});
+
+app.post("/api/ws", (req, res) => {
+  console.log("[/api/ws] Incoming Discord proxy POST");
+
+  const wsUrl = `ws://localhost:${port}/ws`;
+  console.log("[/api/ws] Connecting to local WebSocket server:", wsUrl);
+
+  const ws = new WebSocket(wsUrl);
+
+  // Stream POST body → local WS
+  req.on("data", (chunk) => {
+    console.debug("[/api/ws] Received chunk from Discord:", chunk.length, "bytes");
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(chunk);
+    } else {
+      ws.once("open", () => ws.send(chunk));
+    }
+  });
+
+  req.on("end", () => {
+    console.debug("[/api/ws] Discord request ended");
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+  });
+
+  // Pipe local WS → HTTP response
+  ws.on("message", (data) => {
+    console.debug("[/api/ws] WS → Discord:", data.length, "bytes");
+    res.write(data);
+  });
+
+  ws.on("close", () => {
+    console.debug("[/api/ws] Local WS closed, ending response");
+    res.end();
+  });
+
+  ws.on("error", (err) => {
+    console.error("[/api/ws] Local WS error:", err);
+    res.status(500).end();
+  });
+
+  req.on("close", () => {
+    console.debug("[/api/ws] HTTP request closed by Discord");
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+  });
+
+  res.setHeader("Content-Type", "application/octet-stream");
+  res.setHeader("Connection", "keep-alive");
+});
+
+console.log('WebSocket server running on ws://localhost:3001/ws');
+
+server.on('upgrade', (req, socket, head) => {
+  console.log("[Server] HTTP upgrade event for WebSocket");
+});

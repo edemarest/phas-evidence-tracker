@@ -2,7 +2,20 @@
 
 .journal-evidence {
   margin-bottom: var(--spacing-l);
-  color: var(--color-text-primary); /* Ensure dark text */
+  color: var(--color-text-primary);
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.evidence-list,
+.evidence-list.evidence-grid {
+  width: 100%;
+  min-height: 0;
+  max-height: none;
+  background: none;
+  padding: 0;
 }
 
 .evidence-list {

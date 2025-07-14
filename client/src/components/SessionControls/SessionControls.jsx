@@ -20,7 +20,7 @@ export default function SessionControls({
             onChange={() => onBoneToggle(!boneFound)}
           />
           <GiBoneKnife className="session-icon" />
-          <span>Bone Found</span>
+          <span>Bone</span>
         </label>
         <label className="session-checkbox-label">
           <input
@@ -29,7 +29,7 @@ export default function SessionControls({
             onChange={() => onCursedObjectToggle(!cursedObjectFound)}
           />
           <GiCursedStar className="session-icon" />
-          <span>Cursed Object Found</span>
+          <span>Cursed Object</span>
         </label>
       </div>
     </div>

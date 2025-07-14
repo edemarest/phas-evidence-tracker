@@ -17,6 +17,7 @@
   gap: var(--spacing-l);
   align-items: center;
   justify-content: flex-start;
+  flex-wrap: nowrap; /* Prevent wrapping by default */
 }
 
 .session-checkbox-label {
@@ -28,6 +29,7 @@
   font-family: var(--font-body);
   cursor: pointer;
   margin-bottom: 0;
+  min-width: 160px; /* Prevent wrapping */
 }
 
 .session-checkbox-label input[type="checkbox"] {
@@ -93,4 +95,15 @@
   margin-right: 4px;
   vertical-align: middle;
   opacity: 0.85;
+}
+
+/* Responsive: allow wrapping only on very small screens */
+@media (max-width: 500px) {
+  .session-checkbox-row {
+    flex-wrap: wrap;
+    gap: var(--spacing-m);
+  }
+  .session-checkbox-label {
+    min-width: 120px;
+  }
 }

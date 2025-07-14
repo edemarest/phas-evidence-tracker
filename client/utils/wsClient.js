@@ -22,6 +22,9 @@ export function createWSClient(sessionId, user, onMessage) {
     ? `wss://${window.location.hostname}/.proxy/api/ws`
     : (import.meta.env.VITE_WS_URL || "ws://localhost:3001/ws");
 
+  console.debug("[Phasmo WS] window.location.hostname =", window.location.hostname);
+  console.debug("[Phasmo WS] isDiscordActivity =", isDiscordActivity());
+  console.debug("[Phasmo WS] import.meta.env.VITE_WS_URL =", import.meta.env.VITE_WS_URL);
   console.debug("[Phasmo WS] Using WebSocket URL:", wsUrl);
 
   let ws;
@@ -43,6 +46,7 @@ export function createWSClient(sessionId, user, onMessage) {
     if (isClosed) return;
     isOpen = true;
     console.log("[Phasmo WS] WebSocket opened:", wsUrl);
+    console.log("[Phasmo WS] Sending join message:", { sessionId, user: testUser });
     ws.send(JSON.stringify({
       type: "join",
       sessionId,

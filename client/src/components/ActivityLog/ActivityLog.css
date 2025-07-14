@@ -2,7 +2,7 @@
 
 .activity-log-wrapper {
   /* Make parent slightly taller and non-scrollable */
-  min-height: 160px;
+  min-height: 200px;
   max-height: 220px;
   height: auto;
   position: relative;
