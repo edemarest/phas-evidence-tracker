@@ -71,9 +71,6 @@ async function handleApiToken(req, res) {
 
 app.post("/api/token", handleApiToken);
 
-// Add this route to support Discord's forced proxy mapping:
-app.post("/.proxy/api/token", handleApiToken);
-
 // --- Start HTTP server ---
 const server = app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
@@ -300,6 +297,9 @@ function broadcast(sessionId, msg) {
 }
 
 // Make sure this is at the very end, after all other routes:
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
