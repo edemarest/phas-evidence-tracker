@@ -303,10 +303,6 @@ app.use((req, res) => {
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
-      console.warn("[WS] Failed to send message:", e);
-    }
-  });
-}
 
 // Make sure this is at the very end, after all other routes:
 app.use((req, res) => {
