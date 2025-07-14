@@ -132,18 +132,8 @@ function assignSessionForJoin() {
 
 // --- REST endpoints for polling and actions ---
 apiRouter.get("/session/:sessionId/state", (req, res) => {
-  const { sessionId } = req.params;
+  const sessionId = "main";
   if (!sessions[sessionId]) {
-    // Optionally auto-create session here (not recommended for real multi-user)
-    // sessions[sessionId] = {
-    //   evidenceState: getDefaultEvidenceState(),
-    //   ghostStates: getDefaultGhostStates(),
-    //   users: [],
-    //   userInfos: [],
-    //   log: [],
-    //   boneFound: false,
-    //   cursedObjectFound: false,
-    // };
     return res.status(404).json({ error: "Session not found" });
   }
   const stateToSend = { ...sessions[sessionId] };
@@ -153,7 +143,7 @@ apiRouter.get("/session/:sessionId/state", (req, res) => {
 });
 
 apiRouter.post("/session/:sessionId/action", (req, res) => {
-  const { sessionId } = req.params;
+  const sessionId = "main";
   const msg = req.body;
   if (!sessions[sessionId]) {
     return res.status(404).json({ error: "Session not found" });
@@ -188,19 +178,14 @@ apiRouter.post("/session/:sessionId/action", (req, res) => {
 // --- Session join endpoint (returns sessionId and initial state) ---
 apiRouter.post("/session/join", (req, res) => {
   console.log("[/session/join] Incoming body:", req.body);
-  const { user, sessionId } = req.body || {};
+  const { user } = req.body || {};
+  const sessionId = "main";
   if (!user || !user.id) {
     console.warn("[/session/join] Missing user or user.id in request body:", req.body);
     return res.status(400).json({ error: "Missing user or user.id in request body" });
   }
-  let requestedSessionId = sessionId;
-  // Always assign a new session if sessionId is missing or not found
-  if (!requestedSessionId || requestedSessionId === "default-session" || !sessions[requestedSessionId]) {
-    requestedSessionId = assignSessionForJoin();
-    console.log("[/session/join] Assigned new sessionId:", requestedSessionId);
-  }
-  if (!sessions[requestedSessionId]) {
-    sessions[requestedSessionId] = {
+  if (!sessions[sessionId]) {
+    sessions[sessionId] = {
       evidenceState: getDefaultEvidenceState(),
       ghostStates: getDefaultGhostStates(),
       users: [],
@@ -209,16 +194,17 @@ apiRouter.post("/session/join", (req, res) => {
       boneFound: false,
       cursedObjectFound: false,
     };
+    console.log("[/session/join] Created main session");
   }
   // Add user if not already present
-  if (!sessions[requestedSessionId].userInfos.some(u => u.id === user.id)) {
-    sessions[requestedSessionId].userInfos.push(user);
-    sessions[requestedSessionId].users.push(user);
+  if (!sessions[sessionId].userInfos.some(u => u.id === user.id)) {
+    sessions[sessionId].userInfos.push(user);
+    sessions[sessionId].users.push(user);
   }
-  const stateToSend = { ...sessions[requestedSessionId] };
+  const stateToSend = { ...sessions[sessionId] };
   stateToSend.users = undefined;
   stateToSend.userInfos = undefined;
-  res.json({ sessionId: requestedSessionId, state: stateToSend });
+  res.json({ sessionId, state: stateToSend });
 });
 
 // --- Action Handlers ---
@@ -303,6 +289,20 @@ app.post("/session/join", (req, res) => {
   app._router.handle(req, res);
 });
 
+// 404 Catch-all
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// Start HTTP Server
+app.listen(port, "0.0.0.0", () => {
+  console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
+});
+
+const SESSION_GRACE_PERIOD_MS = 15000; // 15 seconds grace period
+
+// Track grace period timers for empty sessions
+let sessionGraceTimers = {};
 // 404 Catch-all
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });

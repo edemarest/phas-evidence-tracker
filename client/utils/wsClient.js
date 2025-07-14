@@ -19,7 +19,7 @@ export function createPollingClient(sessionId, user, onMessage) {
     if (stopped) return;
     try {
       console.debug("[Polling] GET " + apiBase + "/session/" + sessionId + "/state");
-      const res = await fetch(`${apiBase}/session/${sessionId}/state?user=${encodeURIComponent(user.id)}`);
+      const res = await fetch(`${apiBase}/session/main/state?user=${encodeURIComponent(user.id)}`);
       if (res.ok) {
         const state = await res.json();
         if (JSON.stringify(state) !== JSON.stringify(lastState)) {
@@ -44,7 +44,7 @@ export function createPollingClient(sessionId, user, onMessage) {
   return {
     sendMessage: async (msg) => {
       console.debug("[Polling] POST " + apiBase + "/session/" + sessionId + "/action", msg);
-      await fetch(`${apiBase}/session/${sessionId}/action`, {
+      await fetch(`${apiBase}/session/main/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...msg, user }),
@@ -55,14 +55,14 @@ export function createPollingClient(sessionId, user, onMessage) {
 }
 
 // Join session and get initial state/sessionId
-export async function joinSession(user, sessionId = "default-session") {
+export async function joinSession(user, sessionId = "main") {
   const apiBase = getApiBase();
   const url = `${apiBase}/session/join`;
   console.debug("[Polling] POST " + url, { user, sessionId });
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user, sessionId }),
+    body: JSON.stringify({ user, sessionId: "main" }),
   });
   if (!res.ok) {
     const text = await res.text();
