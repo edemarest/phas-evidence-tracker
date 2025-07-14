@@ -322,7 +322,7 @@ function broadcast(sessionId, msg) {
 }
 
 // --- Discord Activity Proxy Mapping: /api/ws ---
-app.post("/api/ws", async (req, res) => {
+app.post("/.proxy/api/ws", async (req, res) => {
   console.debug("[/api/ws] Incoming Discord proxy POST");
   // Discord expects a streaming HTTP proxy for WebSocket frames.
   // We'll connect to our local WebSocket server and pipe data between the HTTP request/response and the WebSocket.
