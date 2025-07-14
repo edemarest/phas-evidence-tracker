@@ -12,7 +12,7 @@ dotenv.config({ path: "../.env" });
 
 // --- Initialize Express app ---
 const app = express();
-const port = 3001; // <-- change from 3001 to 4001
+const port = process.env.PORT || 3001; // <-- change from 3001 to 4001
 
 // --- Middleware ---
 app.use(express.json());
@@ -281,7 +281,7 @@ wss.on('connection', (ws, req) => {
   console.log(`[WS] New connection from ${req.socket.remoteAddress}`);
 
   ws.on('message', (message) => {
-    console.log("[WS] Received message:", message); // <-- Add this line
+    console.log("[WS] Received message:", message); // <-- Add this lineprint the join message
 
     let msg;
     try {
@@ -359,11 +359,13 @@ function handleJoin(ws, msg) {
     delete sessionGraceTimers[ws.sessionId];
   }
 
+  console.log("[WS] Sending sync_state to client...");
   ws.send(JSON.stringify({
     type: 'sync_state',
     state: sessions[ws.sessionId],
     sessionId: ws.sessionId,
   }));
+  console.log("[WS] sync_state sent.");
   broadcast(ws.sessionId, {
     type: 'user_joined',
     user: ws.user,

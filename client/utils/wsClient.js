@@ -46,6 +46,17 @@ export function createWSClient(sessionId, user, onMessage) {
     if (isClosed) return;
     isOpen = true;
     console.log("[Phasmo WS] WebSocket opened:", wsUrl);
+
+    // Ensure we have a user and sessionId before sending join
+    if (!testUser || !sessionId) {
+      console.error("[Phasmo WS] Cannot send join message: missing user or sessionId", { testUser, sessionId });
+      if (!isDiscordActivity()) {
+        alert("Cannot join session: missing user or sessionId. Please reload and provide a username.");
+      }
+      ws.close();
+      return;
+    }
+
     console.log("[Phasmo WS] Sending join message:", { sessionId, user: testUser });
     ws.send(JSON.stringify({
       type: "join",
