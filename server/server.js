@@ -184,8 +184,10 @@ apiRouter.post("/session/join", (req, res) => {
     return res.status(400).json({ error: "Missing user or user.id in request body" });
   }
   let requestedSessionId = sessionId;
-  if (requestedSessionId === "default-session" || !requestedSessionId) {
+  // Always assign a new session if sessionId is missing or not found
+  if (!requestedSessionId || requestedSessionId === "default-session" || !sessions[requestedSessionId]) {
     requestedSessionId = assignSessionForJoin();
+    console.log("[/session/join] Assigned new sessionId:", requestedSessionId);
   }
   if (!sessions[requestedSessionId]) {
     sessions[requestedSessionId] = {

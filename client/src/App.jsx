@@ -70,6 +70,10 @@ export default function App({ user }) {
               setState(msg.state);
               setGhostStates(msg.state.ghostStates || {});
               break;
+            case "session_not_found":
+              setWsError("Session not found or expired. Please reload to rejoin.");
+              setConnected(false);
+              break;
             default:
               break;
           }

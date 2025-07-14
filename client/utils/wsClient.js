@@ -26,6 +26,11 @@ export function createPollingClient(sessionId, user, onMessage) {
           onMessage && onMessage({ type: "sync_state", state });
           lastState = state;
         }
+      } else if (res.status === 404) {
+        console.warn("[Polling] Session not found (404). Stopping polling.");
+        onMessage && onMessage({ type: "session_not_found" });
+        stopped = true;
+        return;
       } else {
         console.warn("[Polling] Failed to fetch state:", res.status);
       }
