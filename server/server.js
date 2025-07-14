@@ -202,8 +202,6 @@ app.use((req, res) => {
 app.listen(port, "0.0.0.0", () => {
   console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
 });
-  cursedObjectFound: false,
-};
 
 // --- API endpoints ---
 apiRouter.get("/book/state", (req, res) => {
