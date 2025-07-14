@@ -1,4 +1,3 @@
-
 /* 2️⃣ Theme Variables */
 :root {
   --color-bg-paper: #F5E1B9;
@@ -28,7 +27,7 @@
 
 /* 3️⃣ Global Styles */
 body {
-  background-color: var(--color-bg-paper);
+  background-color: #2a2320; /* darker background */
   font-family: var(--font-body);
   color: var(--color-text-primary);
   margin: 0;
@@ -36,19 +35,35 @@ body {
   line-height: 1.5;
   /* Darker, blurred grid background */
   background-image:
-    repeating-linear-gradient(to bottom, #c2a77d99 0 1px, transparent 1px 32px),
-    repeating-linear-gradient(to right, #c2a77d99 0 1px, transparent 1px 32px);
+    repeating-linear-gradient(to bottom, #c2a77d66 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(to right, #c2a77d66 0 1px, transparent 1px 32px);
   background-size: 32px 32px;
   background-blend-mode: multiply;
-  filter: blur(0.5px) brightness(0.97);
+  filter: blur(1.5px) brightness(0.85); /* more blur, darker */
+  position: relative;
+  overflow-x: hidden;
 }
 
+/* Overlay to add blur/dark effect above background but below app */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: rgba(30, 24, 20, 0.68);
+  backdrop-filter: blur(2.5px);
+  pointer-events: none;
+}
+
+/* App container with relative z-index */
 #app {
   max-width: 1200px;
   margin: 0 auto;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
 
 h1, h2, h3 {
@@ -77,41 +92,107 @@ h3 { font-size: 1.2rem; }
   background: transparent;
   color: var(--color-text-primary);
   font-family: var(--font-body);
-  gap: var(--spacing-l); /* tighter gap */
+  gap: 0; /* remove gap, we'll add binding */
+  position: relative;
+  align-items: stretch;
 }
 
+/* Book binding between pages */
+.journal-binding {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  background: linear-gradient(90deg, #bfa76a 0%, #e7cca8 100%);
+  box-shadow: 0 0 12px 2px #bfa76a55;
+  border-left: 2px solid #c2a77d;
+  border-right: 2px solid #c2a77d;
+  z-index: 2;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+/* Both pages always same height */
 .journal-page {
-  flex: 1;
-  padding: var(--spacing-l) var(--spacing-m);
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--color-bg-paper);
   position: relative;
-  min-width: 0;
   box-shadow: var(--shadow);
   border-radius: var(--radius);
   margin: var(--spacing-m) 0;
-  gap: var(--spacing-s); /* reduced vertical gap */
+  gap: var(--spacing-s);
+  height: 90vh;
+  min-height: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.journal-page.left,
+.journal-page.right {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
 }
 
 .journal-page.left {
-  border-right: 2px solid var(--color-gridline);
+  border-right: none;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .journal-page.right {
-  /* Ghost watermark can be absolutely positioned here if desired */
+  border-left: none;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* Prevent ghost-list-item width shift */
+.ghost-list-item {
+  min-width: 120px;
+  max-width: 100%;
+  box-sizing: border-box;
+  width: 100%;
+  transition: background 0.15s, color 0.15s, border 0.15s;
+  /* ...existing ghost-list-item styles... */
+}
+
+/* Prevent width change on circled/crossed */
+.ghost-list-item.circled,
+.ghost-list-item.crossed {
+  width: 100%;
+  min-width: 120px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 5️⃣ Responsive Layout */
 @media (max-width: 900px) {
   .journal-app-main {
     flex-direction: column;
-    gap: var(--spacing-l);
+    gap: 0;
+  }
+  .journal-binding {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    background: linear-gradient(180deg, #bfa76a 0%, #e7cca8 100%);
+    border-left: none;
+    border-right: none;
+    border-top: 2px solid #c2a77d;
+    border-bottom: 2px solid #c2a77d;
   }
   .journal-page {
-    border-right: none !important;
-    margin: var(--spacing-m) 0;
-    padding: var(--spacing-l) var(--spacing-s);
+    min-height: 300px;
+    max-height: none;
+    height: 45vh;
   }
 }
 

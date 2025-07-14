@@ -71,7 +71,6 @@ app.post("/api/token", async (req, res) => {
 
 // Add this route to support Discord's forced proxy mapping:
 app.post("/.proxy/api/token", async (req, res) => {
-  // Call the same handler as /api/token
   req.url = "/api/token";
   app._router.handle(req, res);
 });

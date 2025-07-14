@@ -288,7 +288,8 @@ export default function App({ user }) {
           Status: {connected ? "Connected" : "Disconnected"}
         </div>
       </div>
-
+      {/* Book binding */}
+      <div className="journal-binding" />
       {/* Right Page */}
       <div className="journal-page right">
         <div className="possible-ghosts-header-row">
