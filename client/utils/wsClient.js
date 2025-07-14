@@ -21,9 +21,18 @@ export function createWSClient(sessionId, user, onMessage) {
 
   let ws;
   if (isDiscordActivity()) {
-    // Use the SDK's createWebSocket method
-    if (!window.discordSdk || !window.discordSdk.createWebSocket) {
-      throw new Error("DiscordSDK.createWebSocket not available in Discord Activity");
+    // Defensive: check for Discord SDK and createWebSocket
+    if (!window.discordSdk) {
+      throw new Error(
+        "DiscordSDK not available. Are you running inside Discord Activity? " +
+        "If testing in browser, use local dev mode."
+      );
+    }
+    if (typeof window.discordSdk.createWebSocket !== "function") {
+      throw new Error(
+        "DiscordSDK.createWebSocket not available. " +
+        "Make sure you are running inside Discord Activity and the SDK is ready."
+      );
     }
     ws = window.discordSdk.createWebSocket(`wss://${window.location.hostname}/.proxy/api/ws`);
     console.log("[Phasmo WS] Creating DiscordSDK WebSocket:", ws.url);
