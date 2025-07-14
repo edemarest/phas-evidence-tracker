@@ -43,6 +43,10 @@ export default function App({ user }) {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
   const pollingRef = useRef(null);
+  // Add refs for audio
+  const circleAudio = useRef();
+  const crossAudio = useRef();
+  const chooseAudio = useRef();
 
   useEffect(() => {
     if (!user) return;
@@ -73,7 +77,10 @@ export default function App({ user }) {
         : current === "circled"
         ? "crossed"
         : "blank";
-    // Update local state immediately for snappy UI
+    // Play sound
+    if (next === "circled" && circleAudio.current) circleAudio.current.play();
+    if (next === "crossed" && crossAudio.current) crossAudio.current.play();
+    if (next === "blank" && chooseAudio.current) chooseAudio.current.play();
     setState((prev) => ({
       ...prev,
       evidenceState: {
@@ -120,8 +127,8 @@ export default function App({ user }) {
     const current = ghostStates[ghostName] || "none";
     let next;
     if (current === "none") {
-      // Circled: set all others to "none"
       next = "circled";
+      if (circleAudio.current) circleAudio.current.play();
       const newGhostStates = Object.fromEntries(
         Object.keys(ghostStates).map((g) => [g, g === ghostName ? "circled" : "none"])
       );
@@ -144,8 +151,8 @@ export default function App({ user }) {
         }
       });
     } else if (current === "circled") {
-      // Uncircle
       next = "none";
+      if (chooseAudio.current) chooseAudio.current.play();
       setGhostStates((prev) => ({
         ...prev,
         [ghostName]: "none",
@@ -214,161 +221,167 @@ export default function App({ user }) {
   const finalGhost = getFinalGhost();
 
   return (
-    <div className="journal-app-main">
-      {/* Left Page */}
-      <div className="journal-page left">
-        <h1 className="journal-title">
-          <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
-          Phasmophobia Journal
-        </h1>
+    <>
+      <div className="journal-app-main">
+        {/* Left Page */}
+        <div className="journal-page left">
+          <h1 className="journal-title">
+            <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
+            Phasmophobia Journal
+          </h1>
 
-        <div className="ghost-hunting-team">
-          <b>
-            <FaSkull style={{ marginRight: 4, verticalAlign: "middle" }} />
-            Ghost Hunting Team:
-          </b>{" "}
-          {users.map((u) => u.username).join(", ")}
+          <div className="ghost-hunting-team">
+            <b>
+              <FaSkull style={{ marginRight: 4, verticalAlign: "middle" }} />
+              Ghost Hunting Team:
+            </b>{" "}
+            {users.map((u) => u.username).join(", ")}
+          </div>
+          <SessionControls
+            users={users}
+            boneFound={effectiveState.boneFound}
+            cursedObjectFound={effectiveState.cursedObjectFound}
+            onBoneToggle={handleBoneToggle}
+            onCursedObjectToggle={handleCursedObjectToggle}
+          />
+          <h2 className="section-title evidence-section-title">
+            <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
+            Evidence
+          </h2>
+          <Journal
+            evidenceState={effectiveState.evidenceState}
+            evidenceTypes={evidenceTypes}
+            onToggle={handleToggleEvidence}
+          />
+          <div className="status-bar">
+            Status: {connected ? "Connected" : "Disconnected"}
+          </div>
         </div>
-        <SessionControls
-          users={users}
-          boneFound={effectiveState.boneFound}
-          cursedObjectFound={effectiveState.cursedObjectFound}
-          onBoneToggle={handleBoneToggle}
-          onCursedObjectToggle={handleCursedObjectToggle}
-        />
-        <h2 className="section-title evidence-section-title">
-          <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
-          Evidence
-        </h2>
-        <Journal
-          evidenceState={effectiveState.evidenceState}
-          evidenceTypes={evidenceTypes}
-          onToggle={handleToggleEvidence}
-        />
-        <div className="status-bar">
-          Status: {connected ? "Connected" : "Disconnected"}
-        </div>
-      </div>
-      {/* Book binding */}
-      <div className="journal-binding" />
-      {/* Right Page */}
-      <div className="journal-page right">
-        <div className="possible-ghosts-header-row">
-          <div className="possible-ghosts-title-row">
-            <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
-              <FaListAlt style={{ marginRight: 8, verticalAlign: "middle" }} />
-              Possible Ghosts
-            </h2>
+        {/* Book binding */}
+        <div className="journal-binding" />
+        {/* Right Page */}
+        <div className="journal-page right">
+          <div className="possible-ghosts-header-row">
+            <div className="possible-ghosts-title-row">
+              <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
+                <FaListAlt style={{ marginRight: 8, verticalAlign: "middle" }} />
+                Possible Ghosts
+              </h2>
+              <button
+                className="ghost-list-table-btn"
+                title="Show all ghosts table"
+                onClick={() => setShowGhostTable(true)}
+              >
+                <FaQuestionCircle />
+              </button>
+            </div>
+            <div className="final-ghost-inline">
+              <span className="final-ghost-label-inline">Final Ghost:</span>
+              <span
+                className={
+                  "final-ghost-value-inline" +
+                  (finalGhost === "?" ? " final-ghost-unknown" : "")
+                }
+              >
+                {finalGhost === "?" ? "???" : finalGhost}
+              </span>
+            </div>
+          </div>
+          <div className="possible-ghosts-list" style={{ marginBottom: "0" }}>
+            <GhostList
+              ghosts={ghosts}
+              possibleGhosts={possibleGhosts}
+              ghostStates={ghostStates}
+              onGhostToggle={handleGhostToggle}
+              evidenceState={effectiveState.evidenceState}
+              onShowTable={() => setShowGhostTable(true)}
+            />
+          </div>
+          {showGhostTable && (
+            <GhostTable ghosts={ghosts} onClose={() => setShowGhostTable(false)} />
+          )}
+          <h2 className="section-title activity-log-title-main">
+            <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
+            Activity Log
+          </h2>
+          <div className="activity-log-wrapper">
+            <ActivityLog log={effectiveState.log || []} />
+          </div>
+          {/* Move Start New Investigation button to the bottom of the page */}
+          <div style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
             <button
-              className="ghost-list-table-btn"
-              title="Show all ghosts table"
-              onClick={() => setShowGhostTable(true)}
+              className="reset-investigation-btn"
+              onClick={() => setShowResetModal(true)}
+              disabled={resetting}
+              title="Start New Investigation"
             >
-              <FaQuestionCircle />
+              <FaRedoAlt style={{ marginRight: 6, verticalAlign: "middle" }} />
+              {resetting ? "Resetting..." : "Start New Investigation"}
             </button>
           </div>
-          <div className="final-ghost-inline">
-            <span className="final-ghost-label-inline">Final Ghost:</span>
-            <span
-              className={
-                "final-ghost-value-inline" +
-                (finalGhost === "?" ? " final-ghost-unknown" : "")
-              }
-            >
-              {finalGhost === "?" ? "???" : finalGhost}
-            </span>
-          </div>
         </div>
-        <div className="possible-ghosts-list" style={{ marginBottom: "0" }}>
-          <GhostList
-            ghosts={ghosts}
-            possibleGhosts={possibleGhosts}
-            ghostStates={ghostStates}
-            onGhostToggle={handleGhostToggle}
-            evidenceState={effectiveState.evidenceState}
-            onShowTable={() => setShowGhostTable(true)}
-          />
-        </div>
-        {showGhostTable && (
-          <GhostTable ghosts={ghosts} onClose={() => setShowGhostTable(false)} />
-        )}
-        <h2 className="section-title activity-log-title-main">
-          <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
-          Activity Log
-        </h2>
-        <div className="activity-log-wrapper">
-          <ActivityLog log={effectiveState.log || []} />
-        </div>
-        {/* Move Start New Investigation button to the bottom of the page */}
-        <div style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
-          <button
-            className="reset-investigation-btn"
-            onClick={() => setShowResetModal(true)}
-            disabled={resetting}
-            title="Start New Investigation"
-          >
-            <FaRedoAlt style={{ marginRight: 6, verticalAlign: "middle" }} />
-            {resetting ? "Resetting..." : "Start New Investigation"}
-          </button>
-        </div>
-      </div>
 
-      {/* Stylized Reset Confirmation Modal */}
-      {showResetModal && (
-        <div className="reset-modal-backdrop">
-          <div className="reset-modal">
-            <FaExclamationTriangle className="reset-modal-icon" />
-            <div className="reset-modal-title">Start New Investigation?</div>
-            <div className="reset-modal-msg">
-              This will <b>reset all evidence, ghosts, and progress</b> for this session.<br />
-              Are you sure you want to continue?
-            </div>
-            <div className="reset-modal-actions">
-              <button
-                className="reset-modal-btn cancel"
-                onClick={() => setShowResetModal(false)}
-                disabled={resetting}
-              >
-                Cancel
-              </button>
-              <button
-                className="reset-modal-btn confirm"
-                onClick={handleResetInvestigation}
-                disabled={resetting}
-              >
-                <FaRedoAlt style={{ marginRight: 5, verticalAlign: "middle" }} />
-                Reset
-              </button>
+        {/* Stylized Reset Confirmation Modal */}
+        {showResetModal && (
+          <div className="reset-modal-backdrop">
+            <div className="reset-modal">
+              <FaExclamationTriangle className="reset-modal-icon" />
+              <div className="reset-modal-title">Start New Investigation?</div>
+              <div className="reset-modal-msg">
+                This will <b>reset all evidence, ghosts, and progress</b> for this session.<br />
+                Are you sure you want to continue?
+              </div>
+              <div className="reset-modal-actions">
+                <button
+                  className="reset-modal-btn cancel"
+                  onClick={() => setShowResetModal(false)}
+                  disabled={resetting}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="reset-modal-btn confirm"
+                  onClick={handleResetInvestigation}
+                  disabled={resetting}
+                >
+                  <FaRedoAlt style={{ marginRight: 5, verticalAlign: "middle" }} />
+                  Reset
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {/* Responsive styles */}
-      <style>
-        {`
-        @media (max-width: 900px) {
-          .journal-app-main {
-            flex-direction: column !important;
-            gap: var(--spacing-m) !important;
-            max-width: 100vw !important;
+        )}
+        {/* Responsive styles */}
+        <style>
+          {`
+          @media (max-width: 900px) {
+            .journal-app-main {
+              flex-direction: column !important;
+              gap: var(--spacing-m) !important;
+              max-width: 100vw !important;
+            }
+            .journal-page {
+              border-right: none !important;
+              margin: var(--spacing-s) 0 !important;
+              padding: var(--spacing-m) var(--spacing-xs) !important;
+              height: auto !important;
+              max-height: none !important;
+              width: 100% !important;
+              max-width: 100vw !important;
+            }
           }
-          .journal-page {
-            border-right: none !important;
-            margin: var(--spacing-s) 0 !important;
-            padding: var(--spacing-m) var(--spacing-xs) !important;
-            height: auto !important;
-            max-height: none !important;
-            width: 100% !important;
-            max-width: 100vw !important;
+          .final-ghost-value-inline.final-ghost-unknown {
+            font-weight: bold;
+            letter-spacing: 0.18em;
+            font-size: 1.25em;
           }
-        }
-        .final-ghost-value-inline.final-ghost-unknown {
-          font-weight: bold;
-          letter-spacing: 0.18em;
-          font-size: 1.25em;
-        }
-        `}
-      </style>
-    </div>
+          `}
+        </style>
+      </div>
+      {/* Add audio elements for SFX */}
+      <audio ref={circleAudio} src="/circle.mp3" preload="auto" />
+      <audio ref={crossAudio} src="/circle.mp3" preload="auto" />
+      <audio ref={chooseAudio} src="/choose.wav" preload="auto" />
+    </>
   );
 }
