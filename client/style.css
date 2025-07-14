@@ -421,3 +421,29 @@ body::before {
   border-radius: var(--radius) var(--radius) 0 0;
   padding: 0;
 }
+
+/* Style the video background */
+#app-bg-video-wrapper {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#app-bg-video {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  filter: blur(12px) brightness(0.7);
+  position: absolute;
+  top: 0; left: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Ensure #app is above the video */
+#app {
+  position: relative;
+  z-index: 1;
+}

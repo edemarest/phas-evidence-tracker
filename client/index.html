@@ -7,7 +7,17 @@
     <title>Hello, World</title>
   </head>
   <body>
+    <div id="app-bg-video-wrapper">
+      <video id="app-bg-video" autoplay loop muted playsinline></video>
+    </div>
     <div id="app"></div>
     <script type="module" src="/main.jsx"></script>
+    <script>
+      // Set video src after DOM loads to avoid browser autoplay issues
+      document.addEventListener("DOMContentLoaded", () => {
+        const vid = document.getElementById("app-bg-video");
+        if (vid) vid.src = "/bg.mp4";
+      });
+    </script>
   </body>
 </html>
