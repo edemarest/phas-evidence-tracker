@@ -41,7 +41,7 @@ if (window.location.search.includes("frame_id")) {
 
       // Retrieve an access_token from your activity's server
       // Use the correct proxy path for Discord Activity
-      let tokenUrl = "/.proxy/api/token";
+      let tokenUrl = "/.proxy/api/token"; // <-- hardcoded relative path
       console.debug("[DiscordSDK] Fetching token from:", tokenUrl);
 
       const response = await fetch(tokenUrl, {
