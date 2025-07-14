@@ -73,6 +73,14 @@ export default function App({ user }) {
         : current === "circled"
         ? "crossed"
         : "blank";
+    // Update local state immediately for snappy UI
+    setState((prev) => ({
+      ...prev,
+      evidenceState: {
+        ...prev.evidenceState,
+        [evidence]: next,
+      },
+    }));
     pollingRef.current.sendMessage({
       type: "evidence_update",
       evidence,

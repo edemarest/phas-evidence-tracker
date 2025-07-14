@@ -78,8 +78,8 @@ body::before {
   flex-direction: column;
   position: relative;
   z-index: 1;
-  /* Add outer padding for the book */
-  padding: 32px 0 32px 0;
+  /* Remove top/bottom padding for minimal vertical space */
+  padding: 0;
 }
 
 /* 4️⃣ Main App Layout (for App.jsx) */
@@ -99,7 +99,9 @@ body::before {
   border-radius: 18px;
   margin: 0 auto;
   max-width: 980px;
-  /* Add more space around the book */
+  /* Remove top margin for minimal vertical space */
+  margin-top: 0;
+  /* Remove extra space around the book */
   padding: 0 16px;
 }
 
