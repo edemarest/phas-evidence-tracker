@@ -373,7 +373,8 @@ body::before {
 }
 
 .evidence-section-title {
-  margin-bottom: 0.5em;
+  margin-bottom: 0.1em;
+  margin-top: 0.2em;
 }
 
 .possible-ghosts-title {

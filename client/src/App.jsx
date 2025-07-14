@@ -278,7 +278,18 @@ export default function App({ user }) {
           </div>
           <div className="final-ghost-inline">
             <span className="final-ghost-label-inline">Final Ghost:</span>
-            <span className="final-ghost-value-inline">
+            <span
+              className={
+                "final-ghost-value-inline" +
+                (finalGhost === "?" ? " final-ghost-unknown" : "")
+              }
+              style={{
+                marginLeft: "16px",
+                fontWeight: finalGhost === "?" ? "bold" : undefined,
+                letterSpacing: finalGhost === "?" ? "0.18em" : undefined,
+                fontSize: finalGhost === "?" ? "1.25em" : undefined,
+              }}
+            >
               {finalGhost === "?" ? "???" : finalGhost}
             </span>
           </div>
@@ -373,6 +384,11 @@ export default function App({ user }) {
             height: auto !important;
             max-height: none !important;
           }
+        }
+        .final-ghost-value-inline.final-ghost-unknown {
+          font-weight: bold;
+          letter-spacing: 0.18em;
+          font-size: 1.25em;
         }
         `}
       </style>
