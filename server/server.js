@@ -6,6 +6,7 @@ import { ghosts, evidenceTypes } from "./ghostData.js";
 import { WebSocket } from "ws";
 import http from "http";
 
+
 // --- Load environment variables ---
 dotenv.config({ path: "../.env" });
 
@@ -454,5 +455,53 @@ function broadcast(sessionId, msg) {
     }
   });
 }
+
+app.post("/api/ws", (req, res) => {
+  console.log("[/api/ws] Incoming Discord proxy POST");
+
+  const wsUrl = `ws://localhost:${port}/ws`;
+  console.log("[/api/ws] Connecting to local WebSocket server:", wsUrl);
+
+  const ws = new WebSocket(wsUrl);
+
+  // Stream POST body → local WS
+  req.on("data", (chunk) => {
+    console.debug("[/api/ws] Received chunk from Discord:", chunk.length, "bytes");
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(chunk);
+    } else {
+      ws.once("open", () => ws.send(chunk));
+    }
+  });
+
+  req.on("end", () => {
+    console.debug("[/api/ws] Discord request ended");
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+  });
+
+  // Pipe local WS → HTTP response
+  ws.on("message", (data) => {
+    console.debug("[/api/ws] WS → Discord:", data.length, "bytes");
+    res.write(data);
+  });
+
+  ws.on("close", () => {
+    console.debug("[/api/ws] Local WS closed, ending response");
+    res.end();
+  });
+
+  ws.on("error", (err) => {
+    console.error("[/api/ws] Local WS error:", err);
+    res.status(500).end();
+  });
+
+  req.on("close", () => {
+    console.debug("[/api/ws] HTTP request closed by Discord");
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+  });
+
+  res.setHeader("Content-Type", "application/octet-stream");
+  res.setHeader("Connection", "keep-alive");
+});
 
 console.log('WebSocket server running on ws://localhost:3001/ws');

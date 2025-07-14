@@ -7,8 +7,8 @@ function isDiscordActivity() {
 }
 
 export function createWSClient(sessionId, user, onMessage) {
-  // For local dev, allow test username override via query param (?user=Alice)
   let testUser = user;
+
   if (!isDiscordActivity()) {
     const params = new URLSearchParams(window.location.search);
     const username = params.get("user");
@@ -17,32 +17,21 @@ export function createWSClient(sessionId, user, onMessage) {
     }
   }
 
+  // ✅ FIX: Use the correct path for Discord Activity proxy tunnel
   const wsUrl = isDiscordActivity()
-    ? `wss://${window.location.hostname}/.proxy/ws`
-    : import.meta.env.VITE_WS_URL || "ws://localhost:3001/ws"; // <-- use port 3001 for dev
+    ? `wss://${window.location.hostname}/.proxy/api/ws`
+    : (import.meta.env.VITE_WS_URL || "ws://localhost:3001/ws");
 
-  if (isDiscordActivity()) {
-    console.debug("[Phasmo WS] Detected Discord Activity, using proxy URL:", wsUrl);
-  } else {
-    console.debug("[Phasmo WS] Not in Discord Activity, using local/dev URL:", wsUrl);
-  }
-
-  console.log("[Phasmo WS] Using WebSocket URL:", wsUrl);
+  console.debug("[Phasmo WS] Using WebSocket URL:", wsUrl);
 
   let ws;
   try {
     ws = new WebSocket(wsUrl);
     console.log("[Phasmo WS] Creating WebSocket:", wsUrl);
   } catch (err) {
-    console.error(
-      `[Phasmo WS] Failed to create WebSocket connection to ${wsUrl}:`,
-      err
-    );
-    // Only alert if not sandboxed
-    if (!window.location.hostname.endsWith("discordsays.com")) {
-      alert(
-        `Could not connect to WebSocket server at ${wsUrl}.\n\nError: ${err.message}`
-      );
+    console.error(`[Phasmo WS] Failed to create WebSocket connection to ${wsUrl}:`, err);
+    if (!isDiscordActivity()) {
+      alert(`Could not connect to WebSocket server at ${wsUrl}.\n\nError: ${err.message}`);
     }
     return null;
   }
@@ -54,13 +43,11 @@ export function createWSClient(sessionId, user, onMessage) {
     if (isClosed) return;
     isOpen = true;
     console.log("[Phasmo WS] WebSocket opened:", wsUrl);
-    ws.send(
-      JSON.stringify({
-        type: "join",
-        sessionId,
-        user: testUser,
-      })
-    );
+    ws.send(JSON.stringify({
+      type: "join",
+      sessionId,
+      user: testUser,
+    }));
   };
 
   ws.onmessage = (event) => {
@@ -75,29 +62,18 @@ export function createWSClient(sessionId, user, onMessage) {
 
   ws.onerror = (event) => {
     if (isClosed) return;
-    console.error(
-      `[Phasmo WS] WebSocket error for ${wsUrl}:`,
-      event?.message || event
-    );
-    if (!window.location.hostname.endsWith("discordsays.com")) {
-      alert(
-        `WebSocket connection error.\n\nURL: ${wsUrl}\n\nCheck that your backend server is running and accessible.`
-      );
+    console.error(`[Phasmo WS] WebSocket error for ${wsUrl}:`, event?.message || event);
+    if (!isDiscordActivity()) {
+      alert(`WebSocket connection error.\n\nURL: ${wsUrl}\n\nCheck that your backend server is running and accessible.`);
     }
   };
 
   ws.onclose = (event) => {
     isClosed = true;
     if (!event.wasClean) {
-      console.error(
-        `[Phasmo WS] WebSocket closed unexpectedly:`,
-        event.code,
-        event.reason
-      );
-      if (!window.location.hostname.endsWith("discordsays.com")) {
-        alert(
-          `WebSocket connection closed unexpectedly.\n\nCode: ${event.code}\nReason: ${event.reason}\n\nCheck your backend server.`
-        );
+      console.error(`[Phasmo WS] WebSocket closed unexpectedly:`, event.code, event.reason);
+      if (!isDiscordActivity()) {
+        alert(`WebSocket connection closed unexpectedly.\n\nCode: ${event.code}\nReason: ${event.reason}\n\nCheck your backend server.`);
       }
     } else {
       console.log("[Phasmo WS] WebSocket closed cleanly.");
@@ -108,17 +84,12 @@ export function createWSClient(sessionId, user, onMessage) {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
     } else if (ws.readyState === WebSocket.CONNECTING) {
-      ws.addEventListener(
-        "open",
-        () => ws.send(JSON.stringify(msg)),
-        { once: true }
-      );
+      ws.addEventListener("open", () => ws.send(JSON.stringify(msg)), { once: true });
     } else {
       console.warn("[Phasmo WS] Tried to send message but socket is not open.", msg);
     }
   };
 
-  // Defensive: prevent double close
   const origClose = ws.close;
   ws.close = function (...args) {
     if (!isClosed) {
