@@ -134,6 +134,16 @@ function assignSessionForJoin() {
 apiRouter.get("/session/:sessionId/state", (req, res) => {
   const { sessionId } = req.params;
   if (!sessions[sessionId]) {
+    // Optionally auto-create session here (not recommended for real multi-user)
+    // sessions[sessionId] = {
+    //   evidenceState: getDefaultEvidenceState(),
+    //   ghostStates: getDefaultGhostStates(),
+    //   users: [],
+    //   userInfos: [],
+    //   log: [],
+    //   boneFound: false,
+    //   cursedObjectFound: false,
+    // };
     return res.status(404).json({ error: "Session not found" });
   }
   const stateToSend = { ...sessions[sessionId] };

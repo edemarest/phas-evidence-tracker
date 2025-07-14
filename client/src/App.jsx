@@ -50,6 +50,7 @@ export default function App({ user }) {
   const [resetting, setResetting] = useState(false);
   const pollingRef = useRef(null);
   const [sessionId, setSessionId] = useState("default-session");
+  const [reconnectKey, setReconnectKey] = useState(0); // Add this line
 
   useEffect(() => {
     if (!user) return;
@@ -71,7 +72,7 @@ export default function App({ user }) {
               setGhostStates(msg.state.ghostStates || {});
               break;
             case "session_not_found":
-              setWsError("Session not found or expired. Please reload to rejoin.");
+              setWsError("Session not found or expired. Please reconnect.");
               setConnected(false);
               break;
             default:
@@ -96,7 +97,8 @@ export default function App({ user }) {
       }
       setConnected(false);
     };
-  }, [user]);
+  // Add reconnectKey as a dependency so useEffect re-runs on reconnect
+  }, [user, reconnectKey]);
 
   // Evidence toggle handler
   function handleToggleEvidence(evidence) {
@@ -195,7 +197,33 @@ export default function App({ user }) {
   // Prevent null dereference: show loading or error if effectiveState is not ready
   if (!effectiveState) {
     if (wsError) {
-      return <div style={{ padding: 32, color: "red" }}>{wsError}</div>;
+      return (
+        <div style={{ padding: 32, color: "red" }}>
+          {wsError}
+          <br />
+          <button
+            style={{
+              marginTop: 16,
+              padding: "8px 24px",
+              fontSize: "1.1em",
+              borderRadius: 8,
+              border: "1.5px solid #B22222",
+              background: "#fffbe8",
+              color: "#B22222",
+              fontFamily: "inherit",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 1px 4px #b2222230"
+            }}
+            onClick={() => {
+              setWsError(null);
+              setReconnectKey((k) => k + 1); // Triggers useEffect to re-join
+            }}
+          >
+            Reconnect
+          </button>
+        </div>
+      );
     }
     return <div style={{ padding: 32 }}>Connecting to session...</div>;
   }
