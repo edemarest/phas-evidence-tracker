@@ -7,13 +7,14 @@ function isDiscordActivity() {
 }
 
 function getApiBase() {
+  if (isDiscordActivity()) {
+    // Only use the proxy path, NOT the full backend URL
+    return "/.proxy/api";
+  }
   if (import.meta.env.MODE === "production") {
-    if (isDiscordActivity()) {
-      return "https://phas-evidence-backend.onrender.com/.proxy/api";
-    }
     return "https://phas-evidence-backend.onrender.com/api";
   }
-  return isDiscordActivity() ? "/.proxy/api" : "/api";
+  return "/api";
 }
 
 // Polling client for single book state
