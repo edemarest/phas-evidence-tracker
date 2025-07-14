@@ -303,12 +303,3 @@ app.listen(port, "0.0.0.0", () => {
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
-
-// Start HTTP Server
-app.listen(port, "0.0.0.0", () => {
-  console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
-});
-
-
-// Track grace period timers for empty sessions
-let sessionGraceTimers = {};
