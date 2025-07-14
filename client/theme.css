@@ -47,7 +47,7 @@ h3 { font-size: 1.2rem; }
   font-family: var(--font-heading);
   font-size: 1.5rem;
   color: var(--color-text-primary);
-  margin-bottom: var(--spacing-m);
+  margin-bottom: var(--spacing-xs);
 }
 
 .evidence-row {

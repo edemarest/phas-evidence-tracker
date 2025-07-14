@@ -90,6 +90,11 @@ export default function App({ user }) {
   }
   function handleBoneToggle(found) {
     if (!pollingRef.current) return;
+    // Update local state immediately for snappy UI
+    setState((prev) => ({
+      ...prev,
+      boneFound: found,
+    }));
     pollingRef.current.sendMessage({
       type: "bone_update",
       found,
@@ -98,6 +103,11 @@ export default function App({ user }) {
   }
   function handleCursedObjectToggle(found) {
     if (!pollingRef.current) return;
+    // Update local state immediately for snappy UI
+    setState((prev) => ({
+      ...prev,
+      cursedObjectFound: found,
+    }));
     pollingRef.current.sendMessage({
       type: "cursed_object_update",
       found,
@@ -202,12 +212,11 @@ export default function App({ user }) {
   const users = [{ username: user.username }];
   const possibleGhosts = filterGhosts(effectiveState.evidenceState, ghosts);
   const finalGhost = getFinalGhost();
-  const isMobilePortrait = false; // Remove mobile-specific logic
 
   return (
     <div className="journal-app-main">
       {/* Left Page */}
-      <div className="journal-page left mobile-visible">
+      <div className="journal-page left">
         <h1 className="journal-title">
           <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
           Phasmophobia Journal
@@ -243,7 +252,7 @@ export default function App({ user }) {
       {/* Book binding */}
       <div className="journal-binding" />
       {/* Right Page */}
-      <div className="journal-page right mobile-visible">
+      <div className="journal-page right">
         <div className="possible-ghosts-header-row">
           <div className="possible-ghosts-title-row">
             <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
@@ -291,7 +300,7 @@ export default function App({ user }) {
           <ActivityLog log={effectiveState.log || []} />
         </div>
         {/* Move Start New Investigation button to the bottom of the page */}
-        <div style={{ marginTop: "auto", display: "flex", justifyContent: "center" }}>
+        <div style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
           <button
             className="reset-investigation-btn"
             onClick={() => setShowResetModal(true)}
@@ -349,6 +358,8 @@ export default function App({ user }) {
             padding: var(--spacing-m) var(--spacing-xs) !important;
             height: auto !important;
             max-height: none !important;
+            width: 100% !important;
+            max-width: 100vw !important;
           }
         }
         .final-ghost-value-inline.final-ghost-unknown {
