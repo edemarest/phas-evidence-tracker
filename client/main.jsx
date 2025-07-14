@@ -6,11 +6,39 @@ import { DiscordSDK } from "@discord/embedded-app-sdk";
 
 const root = createRoot(document.getElementById("app"));
 
-// Global intercept for *all* fetch calls to see if anything is using wrong path
+// --- Robust token URL handling ---
+function isDiscordActivity() {
+  return window.location.search.includes("frame_id") ||
+         window.location.hostname.endsWith("discordsays.com");
+}
+
+// Always resolve to correct API path for token
+function getTokenUrl() {
+  // Accept /token, /api/token, or /.proxy/api/token
+  if (isDiscordActivity()) {
+    return "/.proxy/api/token";
+  }
+  // In dev or prod web, always use /api/token
+  return "/api/token";
+}
+
+// --- Patch global fetch to rewrite /token to correct API path ---
 const origFetch = window.fetch;
 window.fetch = async (...args) => {
-  console.debug("[GLOBAL FETCH] Called with:", ...args);
-  return origFetch(...args);
+  let [url, options] = args;
+  // If url is a Request object, extract the URL string
+  if (url && typeof url === "object" && url.url) url = url.url;
+
+  // Rewrite /token to correct API path
+  if (typeof url === "string" && url.match(/^\/token($|\?)/)) {
+    url = getTokenUrl();
+  }
+  // Also rewrite if someone uses /api/token or /.proxy/api/token incorrectly
+  if (typeof url === "string" && url.match(/^\/(api|\.proxy\/api)\/token($|\?)/)) {
+    // leave as is, but could add logging here if needed
+  }
+  // Call original fetch
+  return origFetch(url, options);
 };
 
 let hasRendered = false;
@@ -25,23 +53,6 @@ async function renderAppWithUser(user) {
   );
 }
 
-// Determine if we're running inside Discord Activity
-function isDiscordActivity() {
-  return window.location.search.includes("frame_id") ||
-         window.location.hostname.endsWith("discordsays.com");
-}
-
-// Choose correct token URL depending on environment
-function getTokenUrl() {
-  if (isDiscordActivity()) {
-    console.debug("[Env] Detected Discord Activity");
-    return "/.proxy/api/token";
-  } else {
-    console.debug("[Env] Detected Local Dev");
-    return "/api/token";
-  }
-}
-
 if (isDiscordActivity()) {
   // Discord embedded mode
   (async () => {
@@ -50,7 +61,7 @@ if (isDiscordActivity()) {
     let user = null;
     try {
       discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
-      window.discordSdk = discordSdk; // <-- Make available for wsClient.js
+      window.discordSdk = discordSdk;
       await discordSdk.ready();
 
       console.debug("[DiscordSDK] SDK ready, starting authorize()...");
@@ -65,7 +76,7 @@ if (isDiscordActivity()) {
 
       console.debug("[DiscordSDK] Received code:", code);
 
-      // Choose correct token path
+      // Use robust token URL
       const tokenUrl = getTokenUrl();
       console.debug("[DiscordSDK] Fetching token from:", tokenUrl);
 
