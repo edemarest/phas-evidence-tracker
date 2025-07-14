@@ -36,6 +36,10 @@ app.use((req, res, next) => {
 
 const apiRouter = express.Router();
 
+// --- Session state (declare these before any function uses them) ---
+let sessions = {};
+let journalCounter = 1;
+
 // --- Token Exchange Route ---
 apiRouter.post("/token", async (req, res) => {
   console.log("[/api/token] Incoming request", {
@@ -93,9 +97,6 @@ apiRouter.get("/ghosts", (req, res) => {
   res.json(ghosts);
 });
 
-// --- Session State and Actions (Polling) ---
-let sessions = {};
-
 function getDefaultEvidenceState() {
   const state = {};
   evidenceTypes.forEach(e => { state[e] = 'blank'; });
@@ -107,8 +108,6 @@ function getDefaultGhostStates() {
   ghosts.forEach(g => { state[g.name] = 'none'; });
   return state;
 }
-
-let journalCounter = 1;
 
 function assignSessionForJoin() {
   const sessionIds = Object.keys(sessions)
@@ -299,11 +298,8 @@ app.listen(port, "0.0.0.0", () => {
   console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
 });
 
-const SESSION_GRACE_PERIOD_MS = 15000; // 15 seconds grace period
 
 // Track grace period timers for empty sessions
-let sessionGraceTimers = {};
-// 404 Catch-all
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
@@ -313,7 +309,6 @@ app.listen(port, "0.0.0.0", () => {
   console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
 });
 
-const SESSION_GRACE_PERIOD_MS = 15000; // 15 seconds grace period
 
 // Track grace period timers for empty sessions
 let sessionGraceTimers = {};
