@@ -281,41 +281,6 @@ app.listen(port, "0.0.0.0", () => {
 });
 let journalCounter = 1;
 
-// Store user info separately for each session
-function getDefaultEvidenceState() {
-  const state = {};
-  evidenceTypes.forEach(e => { state[e] = 'blank'; });
-  return state;
-}
-
-function getDefaultGhostStates() {
-  const state = {};
-  ghosts.forEach(g => { state[g.name] = 'none'; });
-  return state;
-}
-
-function assignSessionForJoin() {
-  const sessionIds = Object.keys(sessions)
-    .filter(id => id.startsWith("journal-"))
-    .sort((a, b) => parseInt(a.split("-")[1], 10) - parseInt(b.split("-")[1], 10));
-  
-  for (let id of sessionIds) {
-    if (sessions[id].users.length < 4) return id;
-  }
-
-  const newId = `journal-${journalCounter++}`;
-  sessions[newId] = {
-    evidenceState: getDefaultEvidenceState(),
-    ghostStates: getDefaultGhostStates(),
-    users: [],
-    userInfos: [], // Store user info separately
-    log: [],
-    boneFound: false,
-    cursedObjectFound: false,
-  };
-  return newId;
-}
-
 const SESSION_GRACE_PERIOD_MS = 15000; // 15 seconds grace period
 
 // Track grace period timers for empty sessions
