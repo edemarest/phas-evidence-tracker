@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createWSClient } from "../utils/wsClient.js";
-import { ghosts, evidenceTypes } from "../../server/ghostData.js";
+import { ghosts, evidenceTypes } from "./ghostData.js";
 import Journal from "./components/Journal/Journal.jsx";
 import GhostList from "./components/GhostList/GhostList.jsx";
 import ActivityLog from "./components/ActivityLog/ActivityLog.jsx";
