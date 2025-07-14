@@ -13,7 +13,7 @@ const port = 3001;
 app.use(express.json());
 
 // --- API ROUTES ---
-app.post("/api/token", async (req, res) => {
+async function handleApiToken(req, res) {
   console.log("[/api/token] Incoming request", {
     method: req.method,
     url: req.originalUrl,
@@ -67,20 +67,12 @@ app.post("/api/token", async (req, res) => {
     console.error("[/api/token] Error in /api/token:", err);
     res.status(500).json({ error: "Internal server error", details: err.message });
   }
-});
+}
+
+app.post("/api/token", handleApiToken);
 
 // Add this route to support Discord's forced proxy mapping:
-app.post("/.proxy/api/token", async (req, res) => {
-  console.log("[/.proxy/api/token] Incoming request", {
-    method: req.method,
-    url: req.originalUrl,
-    headers: req.headers,
-    body: req.body,
-    time: new Date().toISOString(),
-  });
-  req.url = "/api/token";
-  app._router.handle(req, res);
-});
+app.post("/.proxy/api/token", handleApiToken);
 
 // --- Start HTTP server ---
 const server = app.listen(port, () => {
@@ -307,7 +299,16 @@ function broadcast(sessionId, msg) {
   });
 }
 
-// Add at the very end, after all other routes:
+// Make sure this is at the very end, after all other routes:
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+      console.warn("[WS] Failed to send message:", e);
+    }
+  });
+}
+
+// Make sure this is at the very end, after all other routes:
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
