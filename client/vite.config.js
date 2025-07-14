@@ -24,3 +24,5 @@ export default defineConfig(({ mode }) => {
       : undefined,
   };
 });
+
+// No changes needed; Vite will use .env.local in dev and .env in prod

@@ -39,7 +39,6 @@ body {
     repeating-linear-gradient(to right, #c2a77d66 0 1px, transparent 1px 32px);
   background-size: 32px 32px;
   background-blend-mode: multiply;
-  filter: blur(1.5px) brightness(0.85); /* more blur, darker */
   position: relative;
   overflow-x: hidden;
 }
@@ -88,11 +87,11 @@ h3 { font-size: 1.2rem; }
 .journal-app-main {
   display: flex;
   flex-direction: row;
-  min-height: 100vh;
+  height: 100vh; /* <-- ENSURE FULL HEIGHT */
   background: transparent;
   color: var(--color-text-primary);
   font-family: var(--font-body);
-  gap: 0; /* remove gap, we'll add binding */
+  gap: 0;
   position: relative;
   align-items: stretch;
 }
@@ -124,9 +123,9 @@ h3 { font-size: 1.2rem; }
   border-radius: var(--radius);
   margin: var(--spacing-m) 0;
   gap: var(--spacing-s);
-  height: 90vh;
-  min-height: 600px;
-  max-height: 90vh;
+  height: 100%;      /* <-- FILL PARENT HEIGHT */
+  min-height: 0;     /* <-- ALLOW SHRINKING */
+  max-height: none;  /* <-- REMOVE LIMIT */
   overflow: hidden;
 }
 
@@ -134,7 +133,7 @@ h3 { font-size: 1.2rem; }
 .journal-page.right {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100%;   /* <-- FILL PARENT HEIGHT */
   min-height: 0;
   max-height: none;
 }
@@ -302,4 +301,5 @@ h3 { font-size: 1.2rem; }
   letter-spacing: 0.04em;
 }
 
+/* Remove conflicting .activity-log styles here, keep only in ActivityLog.css */
 /* Remove conflicting .activity-log styles here, keep only in ActivityLog.css */

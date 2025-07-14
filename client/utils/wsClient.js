@@ -100,3 +100,5 @@ export function createWSClient(sessionId, user, onMessage) {
 
   return ws;
 }
+
+// No changes needed; VITE_WS_URL will be loaded from .env.local in dev and from .env in prod
