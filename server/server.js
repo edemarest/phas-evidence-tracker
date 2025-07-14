@@ -4,6 +4,7 @@ import fetch from "node-fetch";
 import { WebSocketServer } from "ws";
 import { ghosts, evidenceTypes } from "./ghostData.js";
 import { WebSocket } from "ws";
+import http from "http";
 
 // --- Load environment variables ---
 dotenv.config({ path: "../.env" });
@@ -210,19 +211,25 @@ app.use((req, res) => {
 
 /**
  * ------------------------------------------
- * Start HTTP Server
+ * Start HTTP Server (single server for HTTP + WS)
  * ------------------------------------------
  */
-const server = app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
+const server = http.createServer(app);
+
+server.listen(port, "0.0.0.0", () => {
+  console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
 });
 
 /**
  * ------------------------------------------
- * WebSocket Server
+ * WebSocket Server (attach to HTTP server)
  * ------------------------------------------
  */
 const wss = new WebSocketServer({ server, path: "/ws" });
+
+wss.on("listening", () => {
+  console.log(`[Server] WebSocket server listening on ws://0.0.0.0:${port}/ws`);
+});
 
 let sessions = {};
 let journalCounter = 1;

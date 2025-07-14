@@ -9,30 +9,27 @@ const port = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log("[Server] Serving static from:", path.join(__dirname, "dist"));
+// Serve built React app
 app.use(express.static(path.join(__dirname, "dist")));
 
-// Dev proxy for local testing
+// Proxy API in local dev
 if (process.env.NODE_ENV !== "production") {
-  console.debug("[Dev] Enabling local /api proxy → http://localhost:3001");
-
+  console.log("[Frontend] Enabling local API proxy to http://localhost:3001");
   app.use(
     "/api",
     createProxyMiddleware({
       target: "http://localhost:3001",
       changeOrigin: true,
-      ws: true,
-      logLevel: "debug",
+      ws: true
     })
   );
 }
 
-// Catch-all for SPA routing
+// Fallback SPA routing
 app.get("*", (req, res) => {
-  console.log("[Server] SPA fallback for:", req.url);
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 app.listen(port, "0.0.0.0", () => {
-  console.log(`[Server] Frontend server running at http://0.0.0.0:${port}`);
+  console.log(`[Frontend] Client server running on http://0.0.0.0:${port}`);
 });
