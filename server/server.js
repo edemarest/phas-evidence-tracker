@@ -281,14 +281,24 @@ wss.on('connection', (ws, req) => {
   console.log(`[WS] New connection from ${req.socket.remoteAddress}`);
 
   ws.on('message', (message) => {
-    console.log("[WS] Received message:", message); // <-- Add this lineprint the join message
+    console.log("[WS] Received message:", message);
 
     let msg;
     try {
       msg = JSON.parse(message);
     } catch {
       console.warn("[WS] Invalid JSON:", message);
+      ws.close(1003, "Invalid JSON");
       return;
+    }
+
+    // Defensive: handshake must be join with user and sessionId
+    if (msg.type === 'join') {
+      if (!msg.sessionId || !msg.user || !msg.user.username || !msg.user.id) {
+        console.warn("[WS] Invalid join message, closing connection:", msg);
+        ws.close(1008, "Missing sessionId or user info in join");
+        return;
+      }
     }
 
     switch (msg.type) {
@@ -340,7 +350,7 @@ function handleJoin(ws, msg) {
       evidenceState: getDefaultEvidenceState(),
       ghostStates: getDefaultGhostStates(),
       users: [],
-      userInfos: [], // Store user info separately
+      userInfos: [],
       log: [],
       boneFound: false,
       cursedObjectFound: false,
@@ -359,10 +369,15 @@ function handleJoin(ws, msg) {
     delete sessionGraceTimers[ws.sessionId];
   }
 
+  // Defensive: never send circular references
+  const stateToSend = { ...sessions[ws.sessionId] };
+  stateToSend.users = undefined;
+  stateToSend.userInfos = undefined;
+
   console.log("[WS] Sending sync_state to client...");
   ws.send(JSON.stringify({
     type: 'sync_state',
-    state: sessions[ws.sessionId],
+    state: stateToSend,
     sessionId: ws.sessionId,
   }));
   console.log("[WS] sync_state sent.");
