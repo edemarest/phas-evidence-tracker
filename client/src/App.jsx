@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { createPollingClient, joinSession } from "../utils/wsClient.js";
+import { createPollingClient } from "../utils/wsClient.js";
 import { ghosts, evidenceTypes } from "./ghostData.js";
 import Journal from "./components/Journal/Journal.jsx";
 import GhostList from "./components/GhostList/GhostList.jsx";
@@ -7,9 +7,8 @@ import ActivityLog from "./components/ActivityLog/ActivityLog.jsx";
 import SessionControls from "./components/SessionControls/SessionControls.jsx";
 import GhostTable from "./components/GhostTable/GhostTable.jsx";
 import { FaBookOpen, FaSkull, FaListAlt, FaSearch, FaQuestionCircle, FaRedoAlt, FaExclamationTriangle } from "react-icons/fa";
-import "../style.css"; // Ensure global styles are imported
+import "../style.css";
 
-// Helper to filter ghosts based on evidence state
 function filterGhosts(evidenceState, ghosts) {
   const circled = Object.entries(evidenceState)
     .filter(([_, v]) => v === "circled")
@@ -17,17 +16,13 @@ function filterGhosts(evidenceState, ghosts) {
   const crossed = Object.entries(evidenceState)
     .filter(([_, v]) => v === "crossed")
     .map(([k]) => k);
-
   return ghosts.filter((ghost) => {
-    // Must have all circled evidence
     if (!circled.every((e) => ghost.evidences.includes(e))) return false;
-    // Must not have any crossed evidence
     if (crossed.some((e) => ghost.evidences.includes(e))) return false;
     return true;
   });
 }
 
-// Add a mock state for local style editing
 const MOCK_STATE = {
   evidenceState: Object.fromEntries(evidenceTypes.map((e) => [e, "blank"])),
   boneFound: false,
@@ -39,69 +34,36 @@ const MOCK_STATE = {
 };
 
 export default function App({ user }) {
-  console.log("[App] Render, user:", user);
   const [state, setState] = useState(null);
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState(true);
   const [ghostStates, setGhostStates] = useState({});
   const [showGhostTable, setShowGhostTable] = useState(false);
   const [wsError, setWsError] = useState(null);
-  const [mobilePage, setMobilePage] = useState("left"); // Add state for mobile page flip
+  const [mobilePage, setMobilePage] = useState("left");
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
   const pollingRef = useRef(null);
-  const [sessionId, setSessionId] = useState("default-session");
-  const [reconnectKey, setReconnectKey] = useState(0); // Add this line
 
   useEffect(() => {
     if (!user) return;
-    let stopped = false;
-    let client = null;
-    let joined = false;
-
-    async function setup() {
-      try {
-        // CHANGE "default-session" to "main" here:
-        const joinRes = await joinSession(user, "main");
-        setSessionId(joinRes.sessionId);
-        setState(joinRes.state);
-        setGhostStates(joinRes.state.ghostStates || {});
-        joined = true;
-        client = createPollingClient(joinRes.sessionId, user, (msg) => {
-          switch (msg.type) {
-            case "sync_state":
-              setState(msg.state);
-              setGhostStates(msg.state.ghostStates || {});
-              break;
-            case "session_not_found":
-              setWsError("Session not found or expired. Please reconnect.");
-              setConnected(false);
-              break;
-            default:
-              break;
-          }
-        });
-        pollingRef.current = client;
-        setConnected(true);
-        setWsError(null);
-      } catch (err) {
-        setWsError("Failed to join session: " + err.message);
-        setConnected(false);
+    let client = createPollingClient(user, (msg) => {
+      if (msg.type === "sync_state") {
+        setState(msg.state);
+        setGhostStates(msg.state.ghostStates || {});
       }
-    }
-    setup();
-
+    });
+    pollingRef.current = client;
+    setConnected(true);
+    setWsError(null);
     return () => {
-      stopped = true;
       if (pollingRef.current) {
         pollingRef.current.close();
         pollingRef.current = null;
       }
       setConnected(false);
     };
-  // Add reconnectKey as a dependency so useEffect re-runs on reconnect
-  }, [user, reconnectKey]);
+  }, [user]);
 
-  // Evidence toggle handler
   function handleToggleEvidence(evidence) {
     if (!state || !pollingRef.current) return;
     const current = state.evidenceState[evidence] || "blank";
@@ -118,8 +80,6 @@ export default function App({ user }) {
       user,
     });
   }
-
-  // Bone/cursed object toggle handlers
   function handleBoneToggle(found) {
     if (!pollingRef.current) return;
     pollingRef.current.sendMessage({
@@ -136,8 +96,6 @@ export default function App({ user }) {
       user,
     });
   }
-
-  // Ghost toggle handler
   function handleGhostToggle(ghostName) {
     if (!pollingRef.current) return;
     const current = ghostStates[ghostName] || "none";
@@ -158,26 +116,9 @@ export default function App({ user }) {
       [ghostName]: next,
     }));
   }
-
-  // --- Reset Investigation handler ---
   function handleResetInvestigation() {
     setShowResetModal(false);
     setResetting(true);
-    setState((prev) =>
-      prev
-        ? {
-            ...prev,
-            evidenceState: Object.fromEntries(evidenceTypes.map((e) => [e, "blank"])),
-            ghostStates: ghosts.reduce((acc, g) => { acc[g.name] = "none"; return acc; }, {}),
-            boneFound: false,
-            cursedObjectFound: false,
-            log: [
-              ...(prev.log || []),
-              { user, action: `${user.username} started a new investigation.` }
-            ],
-          }
-        : prev
-    );
     if (pollingRef.current) {
       pollingRef.current.sendMessage({
         type: "reset_investigation",
@@ -187,55 +128,26 @@ export default function App({ user }) {
     setTimeout(() => setResetting(false), 1200);
   }
 
-  // --- TEMP: Always render the UI with mock state if in local dev and no state ---
   const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
   const effectiveState = state || (isLocal ? MOCK_STATE : null);
 
   if (!user) {
     return <div style={{ padding: 32, color: "red" }}>No user found. Please reload and enter a username.</div>;
   }
-
-  // Prevent null dereference: show loading or error if effectiveState is not ready
   if (!effectiveState) {
     if (wsError) {
       return (
         <div style={{ padding: 32, color: "red" }}>
           {wsError}
-          <br />
-          <button
-            style={{
-              marginTop: 16,
-              padding: "8px 24px",
-              fontSize: "1.1em",
-              borderRadius: 8,
-              border: "1.5px solid #B22222",
-              background: "#fffbe8",
-              color: "#B22222",
-              fontFamily: "inherit",
-              fontWeight: 600,
-              cursor: "pointer",
-              boxShadow: "0 1px 4px #b2222230"
-            }}
-            onClick={() => {
-              setWsError(null);
-              setReconnectKey((k) => k + 1); // Triggers useEffect to re-join
-            }}
-          >
-            Reconnect
-          </button>
         </div>
       );
     }
-    return <div style={{ padding: 32 }}>Connecting to session...</div>;
+    return <div style={{ padding: 32 }}>Connecting to book...</div>;
   }
 
-  // For now, users list is not tracked in state, so just show current user
   const users = [{ username: user.username }];
-
   const possibleGhosts = filterGhosts(effectiveState.evidenceState, ghosts);
   const finalGhost = possibleGhosts.length === 1 ? possibleGhosts[0].name : "?";
-
-  // Detect mobile portrait mode
   const isMobilePortrait =
     typeof window !== "undefined" &&
     window.matchMedia &&
@@ -266,8 +178,8 @@ export default function App({ user }) {
           users={users}
           boneFound={effectiveState.boneFound}
           cursedObjectFound={effectiveState.cursedObjectFound}
-          onBoneToggle={() => {}}
-          onCursedObjectToggle={() => {}}
+          onBoneToggle={handleBoneToggle}
+          onCursedObjectToggle={handleCursedObjectToggle}
         />
         <h2 className="section-title evidence-section-title">
           <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
@@ -276,7 +188,7 @@ export default function App({ user }) {
         <Journal
           evidenceState={effectiveState.evidenceState}
           evidenceTypes={evidenceTypes}
-          onToggle={() => {}}
+          onToggle={handleToggleEvidence}
         />
         <div className="status-bar">
           Status: {connected ? "Connected" : "Disconnected"}
@@ -327,8 +239,8 @@ export default function App({ user }) {
           <GhostList
             ghosts={ghosts}
             possibleGhosts={possibleGhosts}
-            ghostStates={{}}
-            onGhostToggle={() => {}}
+            ghostStates={ghostStates}
+            onGhostToggle={handleGhostToggle}
             evidenceState={effectiveState.evidenceState}
             onShowTable={() => setShowGhostTable(true)}
           />

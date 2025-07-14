@@ -36,10 +36,6 @@ app.use((req, res, next) => {
 
 const apiRouter = express.Router();
 
-// --- Session state (declare these before any function uses them) ---
-let sessions = {};
-let journalCounter = 1;
-
 // --- Token Exchange Route ---
 apiRouter.post("/token", async (req, res) => {
   console.log("[/api/token] Incoming request", {
@@ -109,54 +105,72 @@ function getDefaultGhostStates() {
   return state;
 }
 
-// --- REST endpoints for polling and actions ---
-apiRouter.get("/session/:sessionId/state", (req, res) => {
-  const sessionId = "main";
-  if (!sessions[sessionId]) {
-    // Auto-create the main session if missing
-    sessions[sessionId] = {
-      evidenceState: getDefaultEvidenceState(),
-      ghostStates: getDefaultGhostStates(),
-      users: [],
-      userInfos: [],
-      log: [],
-      boneFound: false,
-      cursedObjectFound: false,
-    };
-    console.log("[/session/state] Auto-created main session");
-  }
-  const stateToSend = { ...sessions[sessionId] };
-  stateToSend.users = undefined;
-  stateToSend.userInfos = undefined;
-  res.json(stateToSend);
+// --- Single shared book state ---
+let bookState = {
+  evidenceState: getDefaultEvidenceState(),
+  ghostStates: getDefaultGhostStates(),
+  log: [],
+  boneFound: false,
+  cursedObjectFound: false,
+};
+
+// --- Book endpoints ---
+apiRouter.get("/book/state", (req, res) => {
+  res.json(bookState);
 });
 
-apiRouter.post("/session/:sessionId/action", (req, res) => {
-  const sessionId = "main";
+apiRouter.post("/book/action", (req, res) => {
   const msg = req.body;
-  if (!sessions[sessionId]) {
-    return res.status(404).json({ error: "Session not found" });
-  }
-  // Debug log every action
-  console.debug(`[ACTION] Session: ${sessionId}, Type: ${msg.type}, User: ${msg.user?.username}`);
   switch (msg.type) {
     case 'evidence_update':
-      handleEvidenceUpdate(sessionId, msg);
+      bookState.evidenceState[msg.evidence] = msg.state;
+      bookState.log.push({
+        user: msg.user,
+        actionType: "evidence_update",
+        evidence: msg.evidence,
+        state: msg.state,
+      });
       break;
     case 'log_action':
-      handleLogAction(sessionId, msg);
+      bookState.log.push({
+        user: msg.user,
+        action: msg.action,
+      });
       break;
     case 'bone_update':
-      handleBoneUpdate(sessionId, msg);
+      bookState.boneFound = msg.found;
+      bookState.log.push({
+        user: msg.user,
+        actionType: "bone_update",
+        found: msg.found,
+      });
       break;
     case 'cursed_object_update':
-      handleCursedObjectUpdate(sessionId, msg);
+      bookState.cursedObjectFound = msg.found;
+      bookState.log.push({
+        user: msg.user,
+        actionType: "cursed_object_update",
+        found: msg.found,
+      });
       break;
     case 'ghost_state_update':
-      handleGhostStateUpdate(sessionId, msg);
+      bookState.ghostStates[msg.ghostName] = msg.state;
+      bookState.log.push({
+        user: msg.user,
+        actionType: "ghost_state_update",
+        ghostName: msg.ghostName,
+        state: msg.state,
+      });
       break;
     case 'reset_investigation':
-      handleResetInvestigation(sessionId, msg);
+      bookState.evidenceState = getDefaultEvidenceState();
+      bookState.ghostStates = getDefaultGhostStates();
+      bookState.boneFound = false;
+      bookState.cursedObjectFound = false;
+      bookState.log.push({
+        user: msg.user,
+        action: `${msg.user.username} started a new investigation.`,
+      });
       break;
     default:
       return res.status(400).json({ error: "Unknown action type" });
@@ -164,36 +178,55 @@ apiRouter.post("/session/:sessionId/action", (req, res) => {
   res.json({ ok: true });
 });
 
-// --- Session join endpoint (returns sessionId and initial state) ---
-apiRouter.post("/session/join", (req, res) => {
-  console.log("[/session/join] Incoming body:", req.body);
-  const { user } = req.body || {};
-  const sessionId = "main";
-  if (!user || !user.id) {
-    console.warn("[/session/join] Missing user or user.id in request body:", req.body);
-    return res.status(400).json({ error: "Missing user or user.id in request body" });
-  }
-  if (!sessions[sessionId]) {
-    sessions[sessionId] = {
-      evidenceState: getDefaultEvidenceState(),
-      ghostStates: getDefaultGhostStates(),
-      users: [],
-      userInfos: [],
-      log: [],
-      boneFound: false,
-      cursedObjectFound: false,
-    };
-    console.log("[/session/join] Created main session");
-  }
-  // Add user if not already present
-  if (!sessions[sessionId].userInfos.some(u => u.id === user.id)) {
-    sessions[sessionId].userInfos.push(user);
-    sessions[sessionId].users.push(user);
-  }
-  const stateToSend = { ...sessions[sessionId] };
-  stateToSend.users = undefined;
-  stateToSend.userInfos = undefined;
-  res.json({ sessionId, state: stateToSend });
+apiRouter.post("/book/reset", (req, res) => {
+  bookState = {
+    evidenceState: getDefaultEvidenceState(),
+    ghostStates: getDefaultGhostStates(),
+    log: [],
+    boneFound: false,
+    cursedObjectFound: false,
+  };
+  res.json({ ok: true });
+});
+
+// Attach router to BOTH /api and /.proxy/api
+app.use("/api", apiRouter);
+app.use("/.proxy/api", apiRouter);
+
+// 404 Catch-all
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// Start HTTP Server
+app.listen(port, "0.0.0.0", () => {
+  console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
+});
+  cursedObjectFound: false,
+};
+
+// --- API endpoints ---
+apiRouter.get("/book/state", (req, res) => {
+  res.json(bookState);
+});
+
+apiRouter.post("/book/action", (req, res) => {
+  const msg = req.body;
+  // handle actions, e.g. evidence_update, ghost_state_update, etc.
+  // update bookState accordingly
+  // ...existing action handler logic, but use bookState instead of sessions[sessionId]...
+  res.json({ ok: true });
+});
+
+apiRouter.post("/book/reset", (req, res) => {
+  bookState = {
+    evidenceState: getDefaultEvidenceState(),
+    ghostStates: getDefaultGhostStates(),
+    log: [],
+    boneFound: false,
+    cursedObjectFound: false,
+  };
+  res.json({ ok: true });
 });
 
 // --- Action Handlers ---

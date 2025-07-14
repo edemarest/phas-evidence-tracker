@@ -1,4 +1,4 @@
-// Usage: const client = createPollingClient(sessionId, user, onMessage);
+// Usage: const client = createPollingClient(user, onMessage);
 // client.sendMessage({ type: 'evidence_update', ... });
 
 function isDiscordActivity() {
@@ -10,7 +10,8 @@ function getApiBase() {
   return isDiscordActivity() ? "/.proxy/api" : "/api";
 }
 
-export function createPollingClient(sessionId, user, onMessage) {
+// Polling client for single book state
+export function createPollingClient(user, onMessage) {
   let stopped = false;
   let lastState = null;
   const apiBase = getApiBase();
@@ -18,25 +19,18 @@ export function createPollingClient(sessionId, user, onMessage) {
   async function poll() {
     if (stopped) return;
     try {
-      // Use apiBase for all fetches!
-      console.debug("[Polling] GET " + apiBase + "/session/main/state");
-      const res = await fetch(`${apiBase}/session/main/state?user=${encodeURIComponent(user.id)}`);
+      const res = await fetch(`${apiBase}/book/state`);
       if (res.ok) {
         const state = await res.json();
         if (JSON.stringify(state) !== JSON.stringify(lastState)) {
           onMessage && onMessage({ type: "sync_state", state });
           lastState = state;
         }
-      } else if (res.status === 404) {
-        console.warn("[Polling] Session not found (404). Stopping polling.");
-        onMessage && onMessage({ type: "session_not_found" });
-        stopped = true;
-        return;
       } else {
-        console.warn("[Polling] Failed to fetch state:", res.status);
+        console.warn("[Polling] Failed to fetch book state:", res.status);
       }
     } catch (err) {
-      console.error("[Polling] Error fetching state:", err);
+      console.error("[Polling] Error fetching book state:", err);
     }
     setTimeout(poll, 2000);
   }
@@ -44,31 +38,19 @@ export function createPollingClient(sessionId, user, onMessage) {
 
   return {
     sendMessage: async (msg) => {
-      console.debug("[Polling] POST " + apiBase + "/session/main/action", msg);
-      await fetch(`${apiBase}/session/main/action`, {
+      await fetch(`${apiBase}/book/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...msg, user }),
       });
     },
+    resetBook: async (msg) => {
+      await fetch(`${apiBase}/book/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: msg.user }),
+      });
+    },
     close: () => { stopped = true; }
   };
-}
-
-// Join session and get initial state/sessionId
-export async function joinSession(user, sessionId = "main") {
-  const apiBase = getApiBase();
-  const url = `${apiBase}/session/join`;
-  console.debug("[Polling] POST " + url, { user, sessionId });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user, sessionId: "main" }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("[Polling] joinSession failed:", res.status, text);
-    throw new Error("Failed to join session");
-  }
-  return await res.json();
 }
