@@ -194,20 +194,12 @@ export default function App({ user }) {
   const users = [{ username: user.username }];
   const possibleGhosts = filterGhosts(effectiveState.evidenceState, ghosts);
   const finalGhost = getFinalGhost();
-  const isMobilePortrait =
-    typeof window !== "undefined" &&
-    window.matchMedia &&
-    window.matchMedia("(max-width: 700px) and (orientation: portrait)").matches;
+  const isMobilePortrait = false; // Remove mobile-specific logic
 
   return (
     <div className="journal-app-main">
       {/* Left Page */}
-      <div
-        className={
-          "journal-page left" +
-          (isMobilePortrait && mobilePage !== "left" ? "" : " mobile-visible")
-        }
-      >
+      <div className="journal-page left mobile-visible">
         <h1 className="journal-title">
           <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
           Phasmophobia Journal
@@ -243,12 +235,7 @@ export default function App({ user }) {
       {/* Book binding */}
       <div className="journal-binding" />
       {/* Right Page */}
-      <div
-        className={
-          "journal-page right" +
-          (isMobilePortrait && mobilePage !== "right" ? "" : " mobile-visible")
-        }
-      >
+      <div className="journal-page right mobile-visible">
         <div className="possible-ghosts-header-row">
           <div className="possible-ghosts-title-row">
             <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
@@ -308,17 +295,7 @@ export default function App({ user }) {
           </button>
         </div>
       </div>
-      {/* Mobile page flip button */}
-      {isMobilePortrait && (
-        <button
-          className="mobile-page-flip-btn"
-          onClick={() =>
-            setMobilePage((prev) => (prev === "left" ? "right" : "left"))
-          }
-        >
-          {mobilePage === "left" ? "→ Next Page" : "← Previous Page"}
-        </button>
-      )}
+
       {/* Stylized Reset Confirmation Modal */}
       {showResetModal && (
         <div className="reset-modal-backdrop">
