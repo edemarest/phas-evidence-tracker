@@ -270,6 +270,13 @@ function handleResetInvestigation(sessionId, msg) {
 app.use("/api", apiRouter);
 app.use("/.proxy/api", apiRouter);
 
+// Add this after apiRouter is set up, if you want to support POST /token at the root:
+app.post("/token", (req, res) => {
+  // Forward to /api/token handler for compatibility
+  req.url = "/api/token";
+  app._router.handle(req, res);
+});
+
 // 404 Catch-all
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
