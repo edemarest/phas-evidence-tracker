@@ -18,7 +18,8 @@ export function createPollingClient(sessionId, user, onMessage) {
   async function poll() {
     if (stopped) return;
     try {
-      console.debug("[Polling] GET " + apiBase + "/session/" + sessionId + "/state");
+      // Use apiBase for all fetches!
+      console.debug("[Polling] GET " + apiBase + "/session/main/state");
       const res = await fetch(`${apiBase}/session/main/state?user=${encodeURIComponent(user.id)}`);
       if (res.ok) {
         const state = await res.json();
@@ -43,7 +44,7 @@ export function createPollingClient(sessionId, user, onMessage) {
 
   return {
     sendMessage: async (msg) => {
-      console.debug("[Polling] POST " + apiBase + "/session/" + sessionId + "/action", msg);
+      console.debug("[Polling] POST " + apiBase + "/session/main/action", msg);
       await fetch(`${apiBase}/session/main/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
