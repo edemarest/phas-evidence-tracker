@@ -198,11 +198,6 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-// Start HTTP Server
-app.listen(port, "0.0.0.0", () => {
-  console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
-});
-
 // --- API endpoints ---
 apiRouter.get("/book/state", (req, res) => {
   res.json(bookState);
