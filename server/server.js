@@ -37,7 +37,7 @@ app.post("/api/token", async (req, res) => {
         client_secret: process.env.DISCORD_CLIENT_SECRET,
         grant_type: "authorization_code",
         code: req.body.code,
-        redirect_uri: process.env.VITE_PUBLIC_URL + "/.proxy/oauth2/authorize",
+        redirect_uri: process.env.VITE_PUBLIC_URL + "/",
       }),
     });
 
