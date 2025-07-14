@@ -100,6 +100,51 @@ apiRouter.get("/ghosts", (req, res) => {
 app.use("/api", apiRouter);
 app.use("/.proxy/api", apiRouter);
 
+app.post("/token", async (req, res) => {
+  console.log("[/token] Incoming request", {
+    body: req.body,
+    time: new Date().toISOString(),
+  });
+
+  if (!req.body || !req.body.code) {
+    console.warn("[/token] Missing code in request body");
+    return res.status(400).json({ error: "Missing code in request body" });
+  }
+
+  try {
+    const response = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        client_id: process.env.VITE_DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code: req.body.code,
+        redirect_uri: process.env.VITE_PUBLIC_URL + "/",
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("[/token] Discord token exchange failed:", text);
+      return res.status(500).json({ error: "Discord token exchange failed", details: text });
+    }
+
+    const data = await response.json();
+    if (!data.access_token) {
+      console.warn("[/token] No access_token in Discord response", data);
+      return res.status(500).json({ error: "No access_token in Discord response", details: data });
+    }
+
+    res.json({ access_token: data.access_token });
+  } catch (err) {
+    console.error("[/token] Error:", err);
+    res.status(500).json({ error: "Internal server error", details: err.message });
+  }
+});
+
 /**
  * ------------------------------------------
  * WebSocket Bridge for Discord Activity Proxy
@@ -122,6 +167,8 @@ app.post(["/api/ws", "/.proxy/api/ws"], async (req, res) => {
       ws.once("open", () => ws.send(chunk));
     }
   });
+
+  
 
   req.on("end", () => {
     console.debug("[/api/ws] Discord request ended");
