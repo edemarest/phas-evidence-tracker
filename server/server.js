@@ -36,7 +36,9 @@ app.use((req, res, next) => {
 
 const apiRouter = express.Router();
 
-// --- Token Exchange Route ---
+/* =========================
+   Discord Token Endpoints
+   ========================= */
 apiRouter.post("/token", async (req, res) => {
   console.log("[/api/token] Incoming request", {
     body: req.body,
@@ -88,11 +90,16 @@ apiRouter.get("/token", (req, res) => {
   });
 });
 
-// --- Ghosts Data Route ---
+/* =========================
+   Ghosts Data Endpoint
+   ========================= */
 apiRouter.get("/ghosts", (req, res) => {
   res.json(ghosts);
 });
 
+/* =========================
+   Book State Helpers
+   ========================= */
 function getDefaultEvidenceState() {
   const state = {};
   evidenceTypes.forEach(e => { state[e] = 'blank'; });
@@ -105,7 +112,9 @@ function getDefaultGhostStates() {
   return state;
 }
 
-// --- Single shared book state ---
+/* =========================
+   Single Shared Book State
+   ========================= */
 let bookState = {
   evidenceState: getDefaultEvidenceState(),
   ghostStates: getDefaultGhostStates(),
@@ -114,11 +123,16 @@ let bookState = {
   cursedObjectFound: false,
 };
 
-// --- Book endpoints ---
+/* =========================
+   Book State Endpoints
+   ========================= */
+
+// Get current book state
 apiRouter.get("/book/state", (req, res) => {
   res.json(bookState);
 });
 
+// Apply an action to the book state
 apiRouter.post("/book/action", (req, res) => {
   const msg = req.body;
   switch (msg.type) {
@@ -178,6 +192,7 @@ apiRouter.post("/book/action", (req, res) => {
   res.json({ ok: true });
 });
 
+// Reset the book state
 apiRouter.post("/book/reset", (req, res) => {
   bookState = {
     evidenceState: getDefaultEvidenceState(),
@@ -189,102 +204,35 @@ apiRouter.post("/book/reset", (req, res) => {
   res.json({ ok: true });
 });
 
-// Attach router to BOTH /api and /.proxy/api
+/* =========================
+   Attach Routers and 404
+   ========================= */
 app.use("/api", apiRouter);
 app.use("/.proxy/api", apiRouter);
 
-// 404 Catch-all
+// 404 Catch-all (must be last!)
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-// --- API endpoints ---
-apiRouter.get("/book/state", (req, res) => {
-  res.json(bookState);
+/* =========================
+   Start HTTP Server
+   ========================= */
+app.listen(port, "0.0.0.0", () => {
+  console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
 });
 
-apiRouter.post("/book/action", (req, res) => {
-  const msg = req.body;
-  // handle actions, e.g. evidence_update, ghost_state_update, etc.
-  // update bookState accordingly
-  // ...existing action handler logic, but use bookState instead of sessions[sessionId]...
-  res.json({ ok: true });
-});
 
-apiRouter.post("/book/reset", (req, res) => {
-  bookState = {
-    evidenceState: getDefaultEvidenceState(),
-    ghostStates: getDefaultGhostStates(),
-    log: [],
-    boneFound: false,
-    cursedObjectFound: false,
-  };
-  res.json({ ok: true });
+// Track grace period timers for empty sessions
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
 });
-
-// --- Action Handlers ---
-function handleEvidenceUpdate(sessionId, msg) {
-  const s = sessions[sessionId];
-  if (!s) return;
-  s.evidenceState[msg.evidence] = msg.state;
   s.log.push({
     user: msg.user,
     actionType: "evidence_update",
     evidence: msg.evidence,
     state: msg.state,
   });
-}
-function handleLogAction(sessionId, msg) {
-  const s = sessions[sessionId];
-  if (!s) return;
-  s.log.push({
-    user: msg.user,
-    action: msg.action,
-  });
-}
-function handleBoneUpdate(sessionId, msg) {
-  const s = sessions[sessionId];
-  if (!s) return;
-  s.boneFound = msg.found;
-  s.log.push({
-    user: msg.user,
-    actionType: "bone_update",
-    found: msg.found,
-  });
-}
-function handleCursedObjectUpdate(sessionId, msg) {
-  const s = sessions[sessionId];
-  if (!s) return;
-  s.cursedObjectFound = msg.found;
-  s.log.push({
-    user: msg.user,
-    actionType: "cursed_object_update",
-    found: msg.found,
-  });
-}
-function handleGhostStateUpdate(sessionId, msg) {
-  const s = sessions[sessionId];
-  if (!s) return;
-  s.ghostStates[msg.ghostName] = msg.state;
-  s.log.push({
-    user: msg.user,
-    actionType: "ghost_state_update",
-    ghostName: msg.ghostName,
-    state: msg.state,
-  });
-}
-function handleResetInvestigation(sessionId, msg) {
-  const s = sessions[sessionId];
-  if (!s) return;
-  s.evidenceState = getDefaultEvidenceState();
-  s.ghostStates = getDefaultGhostStates();
-  s.boneFound = false;
-  s.cursedObjectFound = false;
-  s.log.push({
-    user: msg.user,
-    action: `${msg.user.username} started a new investigation.`,
-  });
-}
 
 // Attach router to BOTH /api and /.proxy/api
 app.use("/api", apiRouter);
@@ -313,7 +261,6 @@ app.use((req, res) => {
 app.listen(port, "0.0.0.0", () => {
   console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
 });
-
 
 // Track grace period timers for empty sessions
 app.use((req, res) => {
