@@ -60,7 +60,8 @@ export default function App({ user }) {
 
     async function setup() {
       try {
-        const joinRes = await joinSession(user, "default-session");
+        // CHANGE "default-session" to "main" here:
+        const joinRes = await joinSession(user, "main");
         setSessionId(joinRes.sessionId);
         setState(joinRes.state);
         setGhostStates(joinRes.state.ghostStates || {});
