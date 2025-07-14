@@ -83,6 +83,12 @@ apiRouter.post("/token", async (req, res) => {
   }
 });
 
+apiRouter.get("/token", (req, res) => {
+  res.status(400).json({
+    error: "Invalid request. Use POST with authorization code."
+  });
+});
+
 // --- Ghosts Data Route ---
 apiRouter.get("/ghosts", (req, res) => {
   res.json(ghosts);
