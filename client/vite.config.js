@@ -1,21 +1,26 @@
-import {defineConfig} from 'vite';
+import { defineConfig } from 'vite';
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  envDir: '../',
-  server: {
-    allowedHosts: [
-      'localhost',
-      'remarks-bread-breaking-anger.trycloudflare.com'
-    ],
+export default defineConfig(({ mode }) => {
+  // Mode is "development" or "production"
+  const isDev = mode === 'development';
 
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-      },
-    },
-  },
+  return {
+    envDir: '../',
+    server: isDev
+      ? {
+          allowedHosts: [
+            'localhost',
+            'remarks-bread-breaking-anger.trycloudflare.com'
+          ],
+          proxy: {
+            '/api': {
+              target: 'http://localhost:3001',
+              changeOrigin: true,
+              secure: false,
+              ws: true,
+            },
+          },
+        }
+      : undefined,
+  };
 });

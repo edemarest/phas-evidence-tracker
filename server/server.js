@@ -3,6 +3,10 @@ import dotenv from "dotenv";
 import fetch from "node-fetch";
 import { WebSocketServer } from "ws";
 import { ghosts, evidenceTypes } from "./ghostData.js"; // Adjust path as needed
+import http from "http";
+import https from "https";
+import { WebSocket } from "ws";
+import fs from "fs";
 
 // --- Load environment variables ---
 dotenv.config({ path: "../.env" });
@@ -74,6 +78,11 @@ app.post("/api/token", async (req, res) => {
     res.status(500).json({ error: "Internal server error", details: err.message });
   }
 });
+
+app.get("/api/ghosts", (req, res) => {
+  res.json(ghosts);
+});
+
 
 // --- Catch-all 404 for any other API routes ---
 app.use((req, res) => {
@@ -311,5 +320,58 @@ function broadcast(sessionId, msg) {
     }
   });
 }
+
+// --- Discord Activity Proxy Mapping: /api/ws ---
+app.post("/api/ws", async (req, res) => {
+  console.debug("[/api/ws] Incoming Discord proxy POST");
+  // Discord expects a streaming HTTP proxy for WebSocket frames.
+  // We'll connect to our local WebSocket server and pipe data between the HTTP request/response and the WebSocket.
+
+  // 1. Connect to local WebSocket server
+  const wsUrl = `ws://localhost:${port}/ws`;
+  console.debug("[/api/ws] Connecting to local WebSocket server:", wsUrl);
+
+  const ws = new WebSocket(wsUrl);
+
+  // 2. Pipe incoming HTTP request data to WebSocket
+  req.on("data", (chunk) => {
+    console.debug("[/api/ws] Received chunk from Discord, forwarding to WS:", chunk.length, "bytes");
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(chunk);
+    } else {
+      ws.once("open", () => ws.send(chunk));
+    }
+  });
+
+  req.on("end", () => {
+    console.debug("[/api/ws] Discord request ended");
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+  });
+
+  // 3. Pipe WebSocket messages back to HTTP response
+  ws.on("message", (data) => {
+    console.debug("[/api/ws] Received message from WS, sending to Discord:", data.length, "bytes");
+    res.write(data);
+  });
+
+  ws.on("close", () => {
+    console.debug("[/api/ws] Local WS closed, ending HTTP response");
+    res.end();
+  });
+
+  ws.on("error", (err) => {
+    console.error("[/api/ws] Local WS error:", err);
+    res.status(500).end();
+  });
+
+  req.on("close", () => {
+    console.debug("[/api/ws] HTTP request closed by Discord");
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+  });
+
+  // Set headers for streaming response
+  res.setHeader("Content-Type", "application/octet-stream");
+  res.setHeader("Connection", "keep-alive");
+});
 
 console.log('WebSocket server running on ws://localhost:3001/ws');

@@ -21,6 +21,14 @@ export function createWSClient(sessionId, user, onMessage) {
     ? `wss://${window.location.hostname}/.proxy/ws`
     : import.meta.env.VITE_WS_URL || "ws://localhost:3001/ws"; // <-- use port 3001 for dev
 
+  if (isDiscordActivity()) {
+    console.debug("[Phasmo WS] Detected Discord Activity, using proxy URL:", wsUrl);
+  } else {
+    console.debug("[Phasmo WS] Not in Discord Activity, using local/dev URL:", wsUrl);
+  }
+
+  console.log("[Phasmo WS] Using WebSocket URL:", wsUrl);
+
   let ws;
   try {
     ws = new WebSocket(wsUrl);
