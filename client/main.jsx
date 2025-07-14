@@ -45,11 +45,12 @@ function getTokenUrl() {
 if (isDiscordActivity()) {
   // Discord embedded mode
   (async () => {
-    let auth = null;
     let discordSdk = null;
+    let auth = null;
     let user = null;
     try {
       discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
+      window.discordSdk = discordSdk; // <-- Make available for wsClient.js
       await discordSdk.ready();
 
       console.debug("[DiscordSDK] SDK ready, starting authorize()...");

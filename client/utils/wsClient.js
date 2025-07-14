@@ -1,3 +1,5 @@
+import { DiscordSDK } from "@discord/embedded-app-sdk";
+
 // Usage:
 // const ws = createWSClient(sessionId, user, onMessage);
 // ws.sendMessage({ type: 'evidence_update', ... });
@@ -19,12 +21,12 @@ export function createWSClient(sessionId, user, onMessage) {
 
   let ws;
   if (isDiscordActivity()) {
-    // Use Discord Embedded App SDK's WebSocket proxy
-    if (!window.DiscordNative || !window.DiscordNative.webSocket) {
-      throw new Error("DiscordNative.webSocket not available in Discord Activity");
+    // Use the SDK's createWebSocket method
+    if (!window.discordSdk || !window.discordSdk.createWebSocket) {
+      throw new Error("DiscordSDK.createWebSocket not available in Discord Activity");
     }
-    ws = window.DiscordNative.webSocket.create(`wss://${window.location.hostname}/.proxy/api/ws`);
-    console.log("[Phasmo WS] Creating DiscordNative WebSocket:", ws.url);
+    ws = window.discordSdk.createWebSocket(`wss://${window.location.hostname}/.proxy/api/ws`);
+    console.log("[Phasmo WS] Creating DiscordSDK WebSocket:", ws.url);
   } else {
     // Local dev: use browser WebSocket
     const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:3001/ws";
@@ -110,13 +112,6 @@ export function createWSClient(sessionId, user, onMessage) {
     if (!isClosed) {
       isClosed = true;
       origClose.apply(ws, args);
-    }
-  };
-
-  return ws;
-}
-
-// No changes needed; VITE_WS_URL will be loaded from .env.local in dev and from .env in prod
     }
   };
 
