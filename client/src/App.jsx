@@ -96,26 +96,72 @@ export default function App({ user }) {
       user,
     });
   }
+  // --- Only allow one ghost to be circled at a time ---
   function handleGhostToggle(ghostName) {
     if (!pollingRef.current) return;
     const current = ghostStates[ghostName] || "none";
-    const next =
-      current === "none"
-        ? "circled"
-        : current === "circled"
-        ? "crossed"
-        : "none";
-    pollingRef.current.sendMessage({
-      type: "ghost_state_update",
-      ghostName,
-      state: next,
-      user,
-    });
-    setGhostStates((prev) => ({
-      ...prev,
-      [ghostName]: next,
-    }));
+    let next;
+    if (current === "none") {
+      // Circled: set all others to "none"
+      next = "circled";
+      const newGhostStates = Object.fromEntries(
+        Object.keys(ghostStates).map((g) => [g, g === ghostName ? "circled" : "none"])
+      );
+      setGhostStates(newGhostStates);
+      pollingRef.current.sendMessage({
+        type: "ghost_state_update",
+        ghostName,
+        state: "circled",
+        user,
+      });
+      // Uncircle all others
+      Object.keys(ghostStates).forEach((g) => {
+        if (g !== ghostName && ghostStates[g] === "circled") {
+          pollingRef.current.sendMessage({
+            type: "ghost_state_update",
+            ghostName: g,
+            state: "none",
+            user,
+          });
+        }
+      });
+    } else if (current === "circled") {
+      // Uncircle
+      next = "none";
+      setGhostStates((prev) => ({
+        ...prev,
+        [ghostName]: "none",
+      }));
+      pollingRef.current.sendMessage({
+        type: "ghost_state_update",
+        ghostName,
+        state: "none",
+        user,
+      });
+    } else {
+      // If crossed, go to none
+      next = "none";
+      setGhostStates((prev) => ({
+        ...prev,
+        [ghostName]: "none",
+      }));
+      pollingRef.current.sendMessage({
+        type: "ghost_state_update",
+        ghostName,
+        state: "none",
+        user,
+      });
+    }
   }
+
+  // --- Final Ghost logic: prefer circled ghost, else evidence logic ---
+  function getFinalGhost() {
+    const circled = Object.entries(ghostStates).find(([_, v]) => v === "circled");
+    if (circled) return circled[0];
+    const possibleGhosts = filterGhosts(effectiveState.evidenceState, ghosts);
+    return possibleGhosts.length === 1 ? possibleGhosts[0].name : "?";
+  }
+
   function handleResetInvestigation() {
     setShowResetModal(false);
     setResetting(true);
@@ -147,7 +193,7 @@ export default function App({ user }) {
 
   const users = [{ username: user.username }];
   const possibleGhosts = filterGhosts(effectiveState.evidenceState, ghosts);
-  const finalGhost = possibleGhosts.length === 1 ? possibleGhosts[0].name : "?";
+  const finalGhost = getFinalGhost();
   const isMobilePortrait =
     typeof window !== "undefined" &&
     window.matchMedia &&
@@ -224,12 +270,6 @@ export default function App({ user }) {
                 "final-ghost-value-inline" +
                 (finalGhost === "?" ? " final-ghost-unknown" : "")
               }
-              style={{
-                marginLeft: "16px",
-                fontWeight: finalGhost === "?" ? "bold" : undefined,
-                letterSpacing: finalGhost === "?" ? "0.18em" : undefined,
-                fontSize: finalGhost === "?" ? "1.25em" : undefined,
-              }}
             >
               {finalGhost === "?" ? "???" : finalGhost}
             </span>
