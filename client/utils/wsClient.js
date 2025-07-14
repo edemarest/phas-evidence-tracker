@@ -7,6 +7,12 @@ function isDiscordActivity() {
 }
 
 function getApiBase() {
+  if (import.meta.env.MODE === "production") {
+    if (isDiscordActivity()) {
+      return "https://phas-evidence-backend.onrender.com/.proxy/api";
+    }
+    return "https://phas-evidence-backend.onrender.com/api";
+  }
   return isDiscordActivity() ? "/.proxy/api" : "/api";
 }
 
@@ -27,10 +33,10 @@ export function createPollingClient(user, onMessage) {
           lastState = state;
         }
       } else {
-        console.warn("[Polling] Failed to fetch book state:", res.status);
+        console.warn("[Polling] Failed to fetch book state:", res.status, apiBase);
       }
     } catch (err) {
-      console.error("[Polling] Error fetching book state:", err);
+      console.error("[Polling] Error fetching book state:", err, apiBase);
     }
     setTimeout(poll, 2000);
   }
