@@ -109,26 +109,6 @@ function getDefaultGhostStates() {
   return state;
 }
 
-function assignSessionForJoin() {
-  const sessionIds = Object.keys(sessions)
-    .filter(id => id.startsWith("journal-"))
-    .sort((a, b) => parseInt(a.split("-")[1], 10) - parseInt(b.split("-")[1], 10));
-  for (let id of sessionIds) {
-    if (sessions[id].users.length < 4) return id;
-  }
-  const newId = `journal-${journalCounter++}`;
-  sessions[newId] = {
-    evidenceState: getDefaultEvidenceState(),
-    ghostStates: getDefaultGhostStates(),
-    users: [],
-    userInfos: [],
-    log: [],
-    boneFound: false,
-    cursedObjectFound: false,
-  };
-  return newId;
-}
-
 // --- REST endpoints for polling and actions ---
 apiRouter.get("/session/:sessionId/state", (req, res) => {
   const sessionId = "main";
