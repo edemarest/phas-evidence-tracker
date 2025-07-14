@@ -13,6 +13,21 @@ const port = 3001;
 
 // --- Middleware ---
 app.use(express.json());
+// --- Debug logging middleware for API routes ---
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith('/api/')) {
+    console.debug(`[DEBUG] Incoming API request:`);
+    console.debug(`  Method: ${req.method}`);
+    console.debug(`  Full route: ${req.originalUrl}`);
+    console.debug(`  Breakdown:`);
+    console.debug(`    baseUrl: ${req.baseUrl}`);
+    console.debug(`    path: ${req.path}`);
+    console.debug(`    query:`, req.query);
+    console.debug(`    body:`, req.body);
+  }
+  next();
+});
+
 
 // --- API Routes ---
 app.post("/api/token", async (req, res) => {
