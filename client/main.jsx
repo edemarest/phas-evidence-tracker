@@ -36,17 +36,31 @@ if (window.location.search.includes("frame_id")) {
         scope: ["identify", "guilds", "applications.commands"],
       });
 
+      // Debug: log the code received from Discord
+      console.debug("[DiscordSDK] Received code from Discord:", code);
+
       // Retrieve an access_token from your activity's server
+      // Use the correct proxy path for Discord Activity
       let tokenUrl = "/.proxy/api/token";
+      console.debug("[DiscordSDK] Fetching token from:", tokenUrl);
+
       const response = await fetch(tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       });
+
+      // Debug: log the response status
+      console.debug("[DiscordSDK] Token fetch response status:", response.status);
+
       if (!response.ok) {
+        const text = await response.text();
+        console.error("[DiscordSDK] Token fetch failed:", response.status, text);
         throw new Error(`Token fetch failed: ${response.status} ${response.statusText}`);
       }
-      const { access_token } = await response.json();
+      const json = await response.json();
+      console.debug("[DiscordSDK] Token fetch response JSON:", json);
+      const { access_token } = json;
       auth = await discordSdk.commands.authenticate({ access_token });
       if (!auth || !auth.user) throw new Error("Discord authentication failed");
       user = auth.user;
