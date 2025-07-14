@@ -2,11 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 import { WebSocketServer } from "ws";
-import { ghosts, evidenceTypes } from "./ghostData.js"; // Adjust path as needed
-import http from "http";
-import https from "https";
+import { ghosts, evidenceTypes } from "./ghostData.js";
 import { WebSocket } from "ws";
-import fs from "fs";
 
 // --- Load environment variables ---
 dotenv.config({ path: "../.env" });
@@ -17,13 +14,13 @@ const port = 3001;
 
 // --- Middleware ---
 app.use(express.json());
+
 // --- Debug logging middleware for API routes ---
 app.use((req, res, next) => {
-  if (req.originalUrl.startsWith('/api/')) {
+  if (req.originalUrl.includes("/api/")) {
     console.debug(`[DEBUG] Incoming API request:`);
     console.debug(`  Method: ${req.method}`);
     console.debug(`  Full route: ${req.originalUrl}`);
-    console.debug(`  Breakdown:`);
     console.debug(`    baseUrl: ${req.baseUrl}`);
     console.debug(`    path: ${req.path}`);
     console.debug(`    query:`, req.query);
@@ -32,9 +29,16 @@ app.use((req, res, next) => {
   next();
 });
 
+/**
+ * ------------------------------------------
+ * ROUTER for both /api/* and /.proxy/api/*
+ * ------------------------------------------
+ */
 
-// --- API Routes ---
-app.post("/api/token", async (req, res) => {
+const apiRouter = express.Router();
+
+// --- Token Exchange Route ---
+apiRouter.post("/token", async (req, res) => {
   console.log("[/api/token] Incoming request", {
     body: req.body,
     time: new Date().toISOString(),
@@ -79,22 +83,92 @@ app.post("/api/token", async (req, res) => {
   }
 });
 
-app.get("/api/ghosts", (req, res) => {
+// --- Ghosts Data Route ---
+apiRouter.get("/ghosts", (req, res) => {
   res.json(ghosts);
 });
 
+/**
+ * Attach router to BOTH /api and /.proxy/api
+ */
+app.use("/api", apiRouter);
+app.use("/.proxy/api", apiRouter);
 
-// --- Catch-all 404 for any other API routes ---
+/**
+ * ------------------------------------------
+ * WebSocket Bridge for Discord Activity Proxy
+ * ------------------------------------------
+ * Must be mounted on /.proxy/api/ws
+ */
+app.post(["/api/ws", "/.proxy/api/ws"], async (req, res) => {
+  console.debug("[/api/ws] Incoming Discord proxy POST");
+
+  const wsUrl = `ws://localhost:${port}/ws`;
+  console.debug("[/api/ws] Connecting to local WebSocket server:", wsUrl);
+
+  const ws = new WebSocket(wsUrl);
+
+  req.on("data", (chunk) => {
+    console.debug("[/api/ws] Received chunk from Discord, forwarding to WS:", chunk.length, "bytes");
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(chunk);
+    } else {
+      ws.once("open", () => ws.send(chunk));
+    }
+  });
+
+  req.on("end", () => {
+    console.debug("[/api/ws] Discord request ended");
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+  });
+
+  ws.on("message", (data) => {
+    console.debug("[/api/ws] Received message from WS, sending to Discord:", data.length, "bytes");
+    res.write(data);
+  });
+
+  ws.on("close", () => {
+    console.debug("[/api/ws] Local WS closed, ending HTTP response");
+    res.end();
+  });
+
+  ws.on("error", (err) => {
+    console.error("[/api/ws] Local WS error:", err);
+    res.status(500).end();
+  });
+
+  req.on("close", () => {
+    console.debug("[/api/ws] HTTP request closed by Discord");
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+  });
+
+  res.setHeader("Content-Type", "application/octet-stream");
+  res.setHeader("Connection", "keep-alive");
+});
+
+/**
+ * ------------------------------------------
+ * 404 Catch-all
+ * ------------------------------------------
+ */
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-// --- Start HTTP server ---
+/**
+ * ------------------------------------------
+ * Start HTTP Server
+ * ------------------------------------------
+ */
 const server = app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
 });
 
-// --- WebSocket Server ---
+/**
+ * ------------------------------------------
+ * WebSocket Server
+ * ------------------------------------------
+ */
 const wss = new WebSocketServer({ server, path: "/ws" });
 
 let sessions = {};
@@ -320,58 +394,5 @@ function broadcast(sessionId, msg) {
     }
   });
 }
-
-// --- Discord Activity Proxy Mapping: /api/ws ---
-app.post("/.proxy/api/ws", async (req, res) => {
-  console.debug("[/api/ws] Incoming Discord proxy POST");
-  // Discord expects a streaming HTTP proxy for WebSocket frames.
-  // We'll connect to our local WebSocket server and pipe data between the HTTP request/response and the WebSocket.
-
-  // 1. Connect to local WebSocket server
-  const wsUrl = `ws://localhost:${port}/ws`;
-  console.debug("[/api/ws] Connecting to local WebSocket server:", wsUrl);
-
-  const ws = new WebSocket(wsUrl);
-
-  // 2. Pipe incoming HTTP request data to WebSocket
-  req.on("data", (chunk) => {
-    console.debug("[/api/ws] Received chunk from Discord, forwarding to WS:", chunk.length, "bytes");
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(chunk);
-    } else {
-      ws.once("open", () => ws.send(chunk));
-    }
-  });
-
-  req.on("end", () => {
-    console.debug("[/api/ws] Discord request ended");
-    if (ws.readyState === WebSocket.OPEN) ws.close();
-  });
-
-  // 3. Pipe WebSocket messages back to HTTP response
-  ws.on("message", (data) => {
-    console.debug("[/api/ws] Received message from WS, sending to Discord:", data.length, "bytes");
-    res.write(data);
-  });
-
-  ws.on("close", () => {
-    console.debug("[/api/ws] Local WS closed, ending HTTP response");
-    res.end();
-  });
-
-  ws.on("error", (err) => {
-    console.error("[/api/ws] Local WS error:", err);
-    res.status(500).end();
-  });
-
-  req.on("close", () => {
-    console.debug("[/api/ws] HTTP request closed by Discord");
-    if (ws.readyState === WebSocket.OPEN) ws.close();
-  });
-
-  // Set headers for streaming response
-  res.setHeader("Content-Type", "application/octet-stream");
-  res.setHeader("Connection", "keep-alive");
-});
 
 console.log('WebSocket server running on ws://localhost:3001/ws');
