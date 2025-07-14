@@ -17,26 +17,19 @@ export function createWSClient(sessionId, user, onMessage) {
     }
   }
 
-  // ✅ FIX: Use the correct path for Discord Activity proxy tunnel
-  const wsUrl = isDiscordActivity()
-    ? `wss://${window.location.hostname}/.proxy/api/ws`
-    : (import.meta.env.VITE_WS_URL || "ws://localhost:3001/ws");
-
-  console.debug("[Phasmo WS] window.location.hostname =", window.location.hostname);
-  console.debug("[Phasmo WS] isDiscordActivity =", isDiscordActivity());
-  console.debug("[Phasmo WS] import.meta.env.VITE_WS_URL =", import.meta.env.VITE_WS_URL);
-  console.debug("[Phasmo WS] Using WebSocket URL:", wsUrl);
-
   let ws;
-  try {
+  if (isDiscordActivity()) {
+    // Use Discord Embedded App SDK's WebSocket proxy
+    if (!window.DiscordNative || !window.DiscordNative.webSocket) {
+      throw new Error("DiscordNative.webSocket not available in Discord Activity");
+    }
+    ws = window.DiscordNative.webSocket.create(`wss://${window.location.hostname}/.proxy/api/ws`);
+    console.log("[Phasmo WS] Creating DiscordNative WebSocket:", ws.url);
+  } else {
+    // Local dev: use browser WebSocket
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:3001/ws";
     ws = new WebSocket(wsUrl);
     console.log("[Phasmo WS] Creating WebSocket:", wsUrl);
-  } catch (err) {
-    console.error(`[Phasmo WS] Failed to create WebSocket connection to ${wsUrl}:`, err);
-    if (!isDiscordActivity()) {
-      alert(`Could not connect to WebSocket server at ${wsUrl}.\n\nError: ${err.message}`);
-    }
-    return null;
   }
 
   let isOpen = false;
@@ -45,7 +38,7 @@ export function createWSClient(sessionId, user, onMessage) {
   ws.onopen = () => {
     if (isClosed) return;
     isOpen = true;
-    console.log("[Phasmo WS] WebSocket opened:", wsUrl);
+    console.log("[Phasmo WS] WebSocket opened:", ws.url);
 
     // Ensure we have a user and sessionId before sending join
     if (!testUser || !testUser.username || !testUser.id || !sessionId) {
@@ -84,9 +77,9 @@ export function createWSClient(sessionId, user, onMessage) {
 
   ws.onerror = (event) => {
     if (isClosed) return;
-    console.error(`[Phasmo WS] WebSocket error for ${wsUrl}:`, event?.message || event);
+    console.error(`[Phasmo WS] WebSocket error for ${ws.url}:`, event?.message || event);
     if (!isDiscordActivity()) {
-      alert(`WebSocket connection error.\n\nURL: ${wsUrl}\n\nCheck that your backend server is running and accessible.`);
+      alert(`WebSocket connection error.\n\nURL: ${ws.url}\n\nCheck that your backend server is running and accessible.`);
     }
   };
 
@@ -117,6 +110,13 @@ export function createWSClient(sessionId, user, onMessage) {
     if (!isClosed) {
       isClosed = true;
       origClose.apply(ws, args);
+    }
+  };
+
+  return ws;
+}
+
+// No changes needed; VITE_WS_URL will be loaded from .env.local in dev and from .env in prod
     }
   };
 
