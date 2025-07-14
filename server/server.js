@@ -284,6 +284,13 @@ app.post("/token", (req, res) => {
   app._router.handle(req, res);
 });
 
+// Add this before the 404 handler:
+app.post("/session/join", (req, res) => {
+  // Forward to /api/session/join handler for compatibility
+  req.url = "/api/session/join";
+  app._router.handle(req, res);
+});
+
 // 404 Catch-all
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });

@@ -52,12 +52,17 @@ export function createPollingClient(sessionId, user, onMessage) {
 // Join session and get initial state/sessionId
 export async function joinSession(user, sessionId = "default-session") {
   const apiBase = getApiBase();
-  console.debug("[Polling] POST " + apiBase + "/session/join", { user, sessionId });
-  const res = await fetch(`${apiBase}/session/join`, {
+  const url = `${apiBase}/session/join`;
+  console.debug("[Polling] POST " + url, { user, sessionId });
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user, sessionId }),
   });
-  if (!res.ok) throw new Error("Failed to join session");
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("[Polling] joinSession failed:", res.status, text);
+    throw new Error("Failed to join session");
+  }
   return await res.json();
 }
