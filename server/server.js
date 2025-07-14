@@ -1,10 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
-import { WebSocketServer } from "ws";
 import { ghosts, evidenceTypes } from "./ghostData.js";
-import { WebSocket } from "ws";
-import http from "http";
 
 
 // --- Load environment variables ---
@@ -12,7 +9,7 @@ dotenv.config({ path: "../.env" });
 
 // --- Initialize Express app ---
 const app = express();
-const port = process.env.PORT || 3001; // <-- change from 3001 to 4001
+const port = process.env.PORT || 3001;
 
 // --- Middleware ---
 app.use(express.json());
@@ -96,143 +93,192 @@ apiRouter.get("/ghosts", (req, res) => {
   res.json(ghosts);
 });
 
-/**
- * Attach router to BOTH /api and /.proxy/api
- */
+// --- Session State and Actions (Polling) ---
+let sessions = {};
+
+function getDefaultEvidenceState() {
+  const state = {};
+  evidenceTypes.forEach(e => { state[e] = 'blank'; });
+  return state;
+}
+
+function getDefaultGhostStates() {
+  const state = {};
+  ghosts.forEach(g => { state[g.name] = 'none'; });
+  return state;
+}
+
+function assignSessionForJoin() {
+  const sessionIds = Object.keys(sessions)
+    .filter(id => id.startsWith("journal-"))
+    .sort((a, b) => parseInt(a.split("-")[1], 10) - parseInt(b.split("-")[1], 10));
+  for (let id of sessionIds) {
+    if (sessions[id].users.length < 4) return id;
+  }
+  const newId = `journal-${journalCounter++}`;
+  sessions[newId] = {
+    evidenceState: getDefaultEvidenceState(),
+    ghostStates: getDefaultGhostStates(),
+    users: [],
+    userInfos: [],
+    log: [],
+    boneFound: false,
+    cursedObjectFound: false,
+  };
+  return newId;
+}
+
+// --- REST endpoints for polling and actions ---
+apiRouter.get("/session/:sessionId/state", (req, res) => {
+  const { sessionId } = req.params;
+  if (!sessions[sessionId]) {
+    return res.status(404).json({ error: "Session not found" });
+  }
+  const stateToSend = { ...sessions[sessionId] };
+  stateToSend.users = undefined;
+  stateToSend.userInfos = undefined;
+  res.json(stateToSend);
+});
+
+apiRouter.post("/session/:sessionId/action", (req, res) => {
+  const { sessionId } = req.params;
+  const msg = req.body;
+  if (!sessions[sessionId]) {
+    return res.status(404).json({ error: "Session not found" });
+  }
+  // Debug log every action
+  console.debug(`[ACTION] Session: ${sessionId}, Type: ${msg.type}, User: ${msg.user?.username}`);
+  switch (msg.type) {
+    case 'evidence_update':
+      handleEvidenceUpdate(sessionId, msg);
+      break;
+    case 'log_action':
+      handleLogAction(sessionId, msg);
+      break;
+    case 'bone_update':
+      handleBoneUpdate(sessionId, msg);
+      break;
+    case 'cursed_object_update':
+      handleCursedObjectUpdate(sessionId, msg);
+      break;
+    case 'ghost_state_update':
+      handleGhostStateUpdate(sessionId, msg);
+      break;
+    case 'reset_investigation':
+      handleResetInvestigation(sessionId, msg);
+      break;
+    default:
+      return res.status(400).json({ error: "Unknown action type" });
+  }
+  res.json({ ok: true });
+});
+
+// --- Session join endpoint (returns sessionId and initial state) ---
+apiRouter.post("/session/join", (req, res) => {
+  const { user, sessionId } = req.body;
+  let requestedSessionId = sessionId;
+  if (requestedSessionId === "default-session" || !requestedSessionId) {
+    requestedSessionId = assignSessionForJoin();
+  }
+  if (!sessions[requestedSessionId]) {
+    sessions[requestedSessionId] = {
+      evidenceState: getDefaultEvidenceState(),
+      ghostStates: getDefaultGhostStates(),
+      users: [],
+      userInfos: [],
+      log: [],
+      boneFound: false,
+      cursedObjectFound: false,
+    };
+  }
+  // Add user if not already present
+  if (!sessions[requestedSessionId].userInfos.some(u => u.id === user.id)) {
+    sessions[requestedSessionId].userInfos.push(user);
+    sessions[requestedSessionId].users.push(user);
+  }
+  const stateToSend = { ...sessions[requestedSessionId] };
+  stateToSend.users = undefined;
+  stateToSend.userInfos = undefined;
+  res.json({ sessionId: requestedSessionId, state: stateToSend });
+});
+
+// --- Action Handlers ---
+function handleEvidenceUpdate(sessionId, msg) {
+  const s = sessions[sessionId];
+  if (!s) return;
+  s.evidenceState[msg.evidence] = msg.state;
+  s.log.push({
+    user: msg.user,
+    actionType: "evidence_update",
+    evidence: msg.evidence,
+    state: msg.state,
+  });
+}
+function handleLogAction(sessionId, msg) {
+  const s = sessions[sessionId];
+  if (!s) return;
+  s.log.push({
+    user: msg.user,
+    action: msg.action,
+  });
+}
+function handleBoneUpdate(sessionId, msg) {
+  const s = sessions[sessionId];
+  if (!s) return;
+  s.boneFound = msg.found;
+  s.log.push({
+    user: msg.user,
+    actionType: "bone_update",
+    found: msg.found,
+  });
+}
+function handleCursedObjectUpdate(sessionId, msg) {
+  const s = sessions[sessionId];
+  if (!s) return;
+  s.cursedObjectFound = msg.found;
+  s.log.push({
+    user: msg.user,
+    actionType: "cursed_object_update",
+    found: msg.found,
+  });
+}
+function handleGhostStateUpdate(sessionId, msg) {
+  const s = sessions[sessionId];
+  if (!s) return;
+  s.ghostStates[msg.ghostName] = msg.state;
+  s.log.push({
+    user: msg.user,
+    actionType: "ghost_state_update",
+    ghostName: msg.ghostName,
+    state: msg.state,
+  });
+}
+function handleResetInvestigation(sessionId, msg) {
+  const s = sessions[sessionId];
+  if (!s) return;
+  s.evidenceState = getDefaultEvidenceState();
+  s.ghostStates = getDefaultGhostStates();
+  s.boneFound = false;
+  s.cursedObjectFound = false;
+  s.log.push({
+    user: msg.user,
+    action: `${msg.user.username} started a new investigation.`,
+  });
+}
+
+// Attach router to BOTH /api and /.proxy/api
 app.use("/api", apiRouter);
 app.use("/.proxy/api", apiRouter);
 
-app.post("/token", async (req, res) => {
-  console.log("[/token] Incoming request", {
-    body: req.body,
-    time: new Date().toISOString(),
-  });
-
-  if (!req.body || !req.body.code) {
-    console.warn("[/token] Missing code in request body");
-    return res.status(400).json({ error: "Missing code in request body" });
-  }
-
-  try {
-    const response = await fetch("https://discord.com/api/oauth2/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: process.env.VITE_DISCORD_CLIENT_ID,
-        client_secret: process.env.DISCORD_CLIENT_SECRET,
-        grant_type: "authorization_code",
-        code: req.body.code,
-        redirect_uri: process.env.VITE_PUBLIC_URL + "/",
-      }),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.error("[/token] Discord token exchange failed:", text);
-      return res.status(500).json({ error: "Discord token exchange failed", details: text });
-    }
-
-    const data = await response.json();
-    if (!data.access_token) {
-      console.warn("[/token] No access_token in Discord response", data);
-      return res.status(500).json({ error: "No access_token in Discord response", details: data });
-    }
-
-    res.json({ access_token: data.access_token });
-  } catch (err) {
-    console.error("[/token] Error:", err);
-    res.status(500).json({ error: "Internal server error", details: err.message });
-  }
-});
-
-/**
- * ------------------------------------------
- * WebSocket Bridge for Discord Activity Proxy
- * ------------------------------------------
- * Must be mounted on /.proxy/api/ws
- */
-app.post(["/api/ws", "/.proxy/api/ws"], async (req, res) => {
-  console.debug("[/api/ws] Incoming Discord proxy POST");
-
-  const wsUrl = `ws://localhost:${port}/ws`;
-  console.debug("[/api/ws] Connecting to local WebSocket server:", wsUrl);
-
-  const ws = new WebSocket(wsUrl);
-
-  req.on("data", (chunk) => {
-    console.debug("[/api/ws] Received chunk from Discord, forwarding to WS:", chunk.length, "bytes");
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(chunk);
-    } else {
-      ws.once("open", () => ws.send(chunk));
-    }
-  });
-
-  
-
-  req.on("end", () => {
-    console.debug("[/api/ws] Discord request ended");
-    if (ws.readyState === WebSocket.OPEN) ws.close();
-  });
-
-  ws.on("message", (data) => {
-    console.debug("[/api/ws] Received message from WS, sending to Discord:", data.length, "bytes");
-    res.write(data);
-  });
-
-  ws.on("close", () => {
-    console.debug("[/api/ws] Local WS closed, ending HTTP response");
-    res.end();
-  });
-
-  ws.on("error", (err) => {
-    console.error("[/api/ws] Local WS error:", err);
-    res.status(500).end();
-  });
-
-  req.on("close", () => {
-    console.debug("[/api/ws] HTTP request closed by Discord");
-    if (ws.readyState === WebSocket.OPEN) ws.close();
-  });
-
-  res.setHeader("Content-Type", "application/octet-stream");
-  res.setHeader("Connection", "keep-alive");
-});
-
-/**
- * ------------------------------------------
- * 404 Catch-all
- * ------------------------------------------
- */
+// 404 Catch-all
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-/**
- * ------------------------------------------
- * Start HTTP Server (single server for HTTP + WS)
- * ------------------------------------------
- */
-const server = http.createServer(app);
-
-server.listen(port, "0.0.0.0", () => {
+// Start HTTP Server
+app.listen(port, "0.0.0.0", () => {
   console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
 });
-
-/**
- * ------------------------------------------
- * WebSocket Server (attach to HTTP server)
- * ------------------------------------------
- */
-const wss = new WebSocketServer({ server, path: "/ws" });
-
-wss.on("listening", () => {
-  console.log(`[Server] WebSocket server listening on ws://0.0.0.0:${port}/ws`);
-});
-
-let sessions = {};
 let journalCounter = 1;
 
 // Store user info separately for each session

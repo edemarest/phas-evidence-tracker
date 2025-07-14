@@ -1,23 +1,55 @@
-import { DiscordSDK } from "@discord/embedded-app-sdk";
+// Usage: const client = createPollingClient(sessionId, user, onMessage);
+// client.sendMessage({ type: 'evidence_update', ... });
 
-// Usage:
-// const ws = createWSClient(sessionId, user, onMessage);
-// ws.sendMessage({ type: 'evidence_update', ... });
+export function createPollingClient(sessionId, user, onMessage) {
+  let stopped = false;
+  let lastState = null;
 
-function isDiscordActivity() {
-  return window.location.hostname.endsWith("discordsays.com");
+  async function poll() {
+    if (stopped) return;
+    try {
+      console.debug("[Polling] GET /api/session/" + sessionId + "/state");
+      const res = await fetch(`/api/session/${sessionId}/state?user=${encodeURIComponent(user.id)}`);
+      if (res.ok) {
+        const state = await res.json();
+        if (JSON.stringify(state) !== JSON.stringify(lastState)) {
+          onMessage && onMessage({ type: "sync_state", state });
+          lastState = state;
+        }
+      } else {
+        console.warn("[Polling] Failed to fetch state:", res.status);
+      }
+    } catch (err) {
+      console.error("[Polling] Error fetching state:", err);
+    }
+    setTimeout(poll, 2000);
+  }
+  poll();
+
+  return {
+    sendMessage: async (msg) => {
+      console.debug("[Polling] POST /api/session/" + sessionId + "/action", msg);
+      await fetch(`/api/session/${sessionId}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...msg, user }),
+      });
+    },
+    close: () => { stopped = true; }
+  };
 }
 
-export function createWSClient(sessionId, user, onMessage) {
-  let testUser = user;
-
-  if (!isDiscordActivity()) {
-    const params = new URLSearchParams(window.location.search);
-    const username = params.get("user");
-    if (username) {
-      testUser = { username, id: username };
-    }
-  }
+// Join session and get initial state/sessionId
+export async function joinSession(user, sessionId = "default-session") {
+  console.debug("[Polling] POST /api/session/join", { user, sessionId });
+  const res = await fetch("/api/session/join", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user, sessionId }),
+  });
+  if (!res.ok) throw new Error("Failed to join session");
+  return await res.json();
+}
 
   let ws;
   if (isDiscordActivity()) {
@@ -29,10 +61,8 @@ export function createWSClient(sessionId, user, onMessage) {
       );
     }
     if (typeof window.discordSdk.createWebSocket !== "function") {
-      throw new Error(
-        "DiscordSDK.createWebSocket not available. " +
-        "Make sure you are running inside Discord Activity and the SDK is ready."
-      );
+      console.warn("[Phasmo WS] DiscordSDK.createWebSocket not available, using HTTP polling fallback.");
+      return createPollingClient(sessionId, user, onMessage);
     }
     ws = window.discordSdk.createWebSocket(`wss://${window.location.hostname}/.proxy/api/ws`);
     console.log("[Phasmo WS] Creating DiscordSDK WebSocket:", ws.url);
@@ -123,8 +153,3 @@ export function createWSClient(sessionId, user, onMessage) {
       origClose.apply(ws, args);
     }
   };
-
-  return ws;
-}
-
-// No changes needed; VITE_WS_URL will be loaded from .env.local in dev and from .env in prod

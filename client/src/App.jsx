@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { createWSClient } from "../utils/wsClient.js";
+import { createPollingClient, joinSession } from "../utils/wsClient.js";
 import { ghosts, evidenceTypes } from "./ghostData.js";
 import Journal from "./components/Journal/Journal.jsx";
 import GhostList from "./components/GhostList/GhostList.jsx";
@@ -48,152 +48,47 @@ export default function App({ user }) {
   const [mobilePage, setMobilePage] = useState("left"); // Add state for mobile page flip
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const wsRef = useRef(null);
-
-  const sessionId = "default-session";
+  const pollingRef = useRef(null);
+  const [sessionId, setSessionId] = useState("default-session");
 
   useEffect(() => {
     if (!user) return;
-    let ws;
-    let closed = false;
-    try {
-      ws = createWSClient(sessionId, user, (msg) => {
-        switch (msg.type) {
-          case "ghost_state_update":
-            setGhostStates((prev) => ({
-              ...prev,
-              [msg.ghostName]: msg.state,
-            }));
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        actionType: "ghost_state_update",
-                        ghostName: msg.ghostName,
-                        state: msg.state,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            break;
-          case "sync_state":
-            setState(msg.state);
-            setGhostStates(msg.state.ghostStates || {});
-            break;
-          case "evidence_update":
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    evidenceState: {
-                      ...prev.evidenceState,
-                      [msg.evidence]: msg.state,
-                    },
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        actionType: "evidence_update",
-                        evidence: msg.evidence,
-                        state: msg.state,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            break;
-          case "bone_update":
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    boneFound: msg.found,
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        actionType: "bone_update",
-                        found: msg.found,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            break;
-          case "cursed_object_update":
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    cursedObjectFound: msg.found,
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        actionType: "cursed_object_update",
-                        found: msg.found,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            break;
-          case "log_action":
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        action: msg.action,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            break;
-          case "user_joined":
-          case "user_left":
-            setState((prev) => ({ ...prev }));
-            break;
-          default:
-            break;
-        }
-      });
-      ws.onerror = (event) => {
-        // Only set error if not already connected
-        if (!connected) {
-          setWsError("WebSocket connection error. Please check your network or backend server.");
-        }
-        setConnected(false);
-      };
-      ws.onopen = () => {
+    let stopped = false;
+    let client = null;
+    let joined = false;
+
+    async function setup() {
+      try {
+        const joinRes = await joinSession(user, "default-session");
+        setSessionId(joinRes.sessionId);
+        setState(joinRes.state);
+        setGhostStates(joinRes.state.ghostStates || {});
+        joined = true;
+        client = createPollingClient(joinRes.sessionId, user, (msg) => {
+          switch (msg.type) {
+            case "sync_state":
+              setState(msg.state);
+              setGhostStates(msg.state.ghostStates || {});
+              break;
+            default:
+              break;
+          }
+        });
+        pollingRef.current = client;
         setConnected(true);
-        setWsError(null); // <-- Clear error on successful open
-      };
-      ws.onclose = (event) => {
-        if (!closed) {
-          setWsError("WebSocket connection closed unexpectedly.");
-          setConnected(false);
-        }
-      };
-      wsRef.current = ws;
-    } catch (err) {
-      setWsError("Failed to connect to WebSocket: " + err.message);
-      setConnected(false);
+        setWsError(null);
+      } catch (err) {
+        setWsError("Failed to join session: " + err.message);
+        setConnected(false);
+      }
     }
+    setup();
+
     return () => {
-      closed = true;
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
+      stopped = true;
+      if (pollingRef.current) {
+        pollingRef.current.close();
+        pollingRef.current = null;
       }
       setConnected(false);
     };
@@ -201,7 +96,7 @@ export default function App({ user }) {
 
   // Evidence toggle handler
   function handleToggleEvidence(evidence) {
-    if (!state || !wsRef.current) return;
+    if (!state || !pollingRef.current) return;
     const current = state.evidenceState[evidence] || "blank";
     const next =
       current === "blank"
@@ -209,7 +104,7 @@ export default function App({ user }) {
         : current === "circled"
         ? "crossed"
         : "blank";
-    wsRef.current.sendMessage({
+    pollingRef.current.sendMessage({
       type: "evidence_update",
       evidence,
       state: next,
@@ -219,16 +114,16 @@ export default function App({ user }) {
 
   // Bone/cursed object toggle handlers
   function handleBoneToggle(found) {
-    if (!wsRef.current) return;
-    wsRef.current.sendMessage({
+    if (!pollingRef.current) return;
+    pollingRef.current.sendMessage({
       type: "bone_update",
       found,
       user,
     });
   }
   function handleCursedObjectToggle(found) {
-    if (!wsRef.current) return;
-    wsRef.current.sendMessage({
+    if (!pollingRef.current) return;
+    pollingRef.current.sendMessage({
       type: "cursed_object_update",
       found,
       user,
@@ -237,7 +132,7 @@ export default function App({ user }) {
 
   // Ghost toggle handler
   function handleGhostToggle(ghostName) {
-    if (!wsRef.current) return;
+    if (!pollingRef.current) return;
     const current = ghostStates[ghostName] || "none";
     const next =
       current === "none"
@@ -245,13 +140,12 @@ export default function App({ user }) {
         : current === "circled"
         ? "crossed"
         : "none";
-    wsRef.current.sendMessage({
+    pollingRef.current.sendMessage({
       type: "ghost_state_update",
       ghostName,
       state: next,
       user,
     });
-    // Optimistically update local state for instant feedback
     setGhostStates((prev) => ({
       ...prev,
       [ghostName]: next,
@@ -262,7 +156,6 @@ export default function App({ user }) {
   function handleResetInvestigation() {
     setShowResetModal(false);
     setResetting(true);
-    // Optimistically clear state
     setState((prev) =>
       prev
         ? {
@@ -278,13 +171,13 @@ export default function App({ user }) {
           }
         : prev
     );
-    if (wsRef.current) {
-      wsRef.current.sendMessage({
+    if (pollingRef.current) {
+      pollingRef.current.sendMessage({
         type: "reset_investigation",
         user,
       });
     }
-    setTimeout(() => setResetting(false), 1200); // Remove spinner after a short delay
+    setTimeout(() => setResetting(false), 1200);
   }
 
   // --- TEMP: Always render the UI with mock state if in local dev and no state ---
