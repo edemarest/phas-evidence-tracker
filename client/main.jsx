@@ -1,55 +1,85 @@
-import React, { useState } from "react";
+import React from "react";
 import { createRoot } from "react-dom/client";
+import { DiscordSDK } from "@discord/embedded-app-sdk";
 import App from "./src/App";
 import "./style.css";
-import { DiscordSDK } from "@discord/embedded-app-sdk";
 
-const root = createRoot(document.getElementById("app"));
+// ================================================
+// ENVIRONMENT DETECTION & ROUTING
+// ================================================
 
-// --- Robust token URL handling ---
+/**
+ * Detects if the app is running as a Discord Activity
+ * @returns {boolean} True if running in Discord Activity context
+ */
 function isDiscordActivity() {
   return window.location.search.includes("frame_id") ||
          window.location.hostname.endsWith("discordsays.com");
 }
 
-// Always resolve to correct API path for token
+/**
+ * Determines the correct API token endpoint based on environment
+ * @returns {string} The token endpoint URL to use
+ */
 function getTokenUrl() {
   if (isDiscordActivity()) {
-    console.log("[getTokenUrl] Discord Activity detected, using /.proxy/api/token");
+    console.log("[API] Discord Activity detected, using /.proxy/api/token");
     return "/.proxy/api/token";
   }
   if (import.meta.env.MODE === "production") {
-    console.log("[getTokenUrl] Production web, using full backend URL");
+    console.log("[API] Production mode, using full backend URL");
     return "https://phas-evidence-backend.onrender.com/api/token";
   }
-  console.log("[getTokenUrl] Dev web, using /api/token");
+  console.log("[API] Development mode, using /api/token");
   return "/api/token";
 }
 
-// --- Patch global fetch to rewrite /token to correct API path ---
-const origFetch = window.fetch;
-window.fetch = async (...args) => {
-  let [url, options] = args;
-  // If url is a Request object, extract the URL string
-  if (url && typeof url === "object" && url.url) url = url.url;
+// ================================================
+// FETCH PATCHING FOR CONSISTENT API ROUTING
+// ================================================
 
-  // Rewrite /token to correct API path
-  if (typeof url === "string" && url.match(/^\/token($|\?)/)) {
-    url = getTokenUrl();
-  }
-  // Also rewrite if someone uses /api/token or /.proxy/api/token incorrectly
-  if (typeof url === "string" && url.match(/^\/(api|\.proxy\/api)\/token($|\?)/)) {
-    // leave as is, but could add logging here if needed
-  }
-  // Call original fetch
-  return origFetch(url, options);
-};
+/**
+ * Patches global fetch to ensure token requests use correct API paths
+ * This handles cases where different parts of the app might use different URL formats
+ */
+function setupFetchPatching() {
+  const originalFetch = window.fetch;
+  
+  window.fetch = async (...args) => {
+    let [url, options] = args;
+    
+    // Extract URL string from Request object if needed
+    if (url && typeof url === "object" && url.url) {
+      url = url.url;
+    }
+    
+    // Rewrite token endpoint URLs to use correct API path
+    if (typeof url === "string" && url.match(/^\/token($|\?)/)) {
+      url = getTokenUrl();
+      console.debug("[Fetch] Rewriting token URL to:", url);
+    }
+    
+    return originalFetch(url, options);
+  };
+}
 
+// ================================================
+// REACT APP RENDERING
+// ================================================
+
+const root = createRoot(document.getElementById("app"));
 let hasRendered = false;
-async function renderAppWithUser(user) {
+
+/**
+ * Renders the main App component with user context
+ * Prevents duplicate rendering attempts
+ * @param {Object} user - User object with username and id
+ */
+function renderAppWithUser(user) {
   if (hasRendered) return;
   hasRendered = true;
-  console.log("[main.jsx] Rendering App with user:", user);
+  
+  console.log("[Render] Starting app with user:", user.username);
   root.render(
     <React.StrictMode>
       <App user={user} />
@@ -57,94 +87,161 @@ async function renderAppWithUser(user) {
   );
 }
 
-if (isDiscordActivity()) {
-  // Discord embedded mode
-  (async () => {
-    let discordSdk = null;
-    let auth = null;
-    let user = null;
-    try {
-      discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
-      window.discordSdk = discordSdk;
-      await discordSdk.ready();
+/**
+ * Renders error state when authentication or setup fails
+ * @param {string} message - Error message to display
+ */
+function renderError(message) {
+  console.error("[Render]", message);
+  root.render(
+    <div style={{ padding: 32, color: "red", textAlign: "center" }}>
+      <h3>Authentication Error</h3>
+      <p>{message}</p>
+      <p>Please try refreshing the page.</p>
+    </div>
+  );
+}
 
-      console.debug("[DiscordSDK] SDK ready, starting authorize()...");
+// ================================================
+// DISCORD AUTHENTICATION FLOW
+// ================================================
 
-      const { code } = await discordSdk.commands.authorize({
-        client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
-        response_type: "code",
-        state: "",
-        prompt: "none",
-        scope: ["identify", "guilds", "applications.commands"],
-      });
-
-      console.debug("[DiscordSDK] Received code:", code);
-
-      // Use robust token URL
-      const tokenUrl = getTokenUrl();
-      console.debug("[DiscordSDK] Fetching token from:", tokenUrl);
-
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-
-      console.debug("[DiscordSDK] Token fetch response:", response.status);
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.error("[DiscordSDK] Token fetch failed:", response.status, text);
-        throw new Error(`Token fetch failed: ${response.status} ${response.statusText}`);
-      }
-
-      const json = await response.json();
-      console.debug("[DiscordSDK] Token fetch response JSON:", json);
-
-      const { access_token } = json;
-      auth = await discordSdk.commands.authenticate({ access_token });
-
-      if (!auth || !auth.user) throw new Error("Discord authentication failed");
-
-      console.debug("[DiscordSDK] Authentication success, user:", auth.user);
-      user = auth.user;
-      renderAppWithUser(user);
-    } catch (err) {
-      console.error("[DiscordSDK] Discord authentication failed:", err);
-      root.render(
-        <div style={{ padding: 32, color: "red" }}>
-          Failed to authenticate with Discord.<br />
-          {err.message}
-        </div>
-      );
+/**
+ * Handles Discord OAuth authentication for embedded app
+ * @returns {Promise<Object>} Authenticated user object
+ */
+async function authenticateWithDiscord() {
+  try {
+    // Initialize Discord SDK
+    const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
+    window.discordSdk = discordSdk; // Expose for debugging
+    
+    console.log("[Discord] Initializing SDK...");
+    await discordSdk.ready();
+    
+    // Request authorization code
+    console.log("[Discord] Requesting authorization...");
+    const { code } = await discordSdk.commands.authorize({
+      client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
+      response_type: "code",
+      state: "",
+      prompt: "none",
+      scope: ["identify", "guilds", "applications.commands"],
+    });
+    
+    // Exchange code for access token
+    console.log("[Discord] Exchanging code for token...");
+    const tokenUrl = getTokenUrl();
+    const response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
     }
-  })();
-} else {
-  // Local dev mode
-  console.debug("[Main] Starting in local dev mode");
-  let user = null;
-  const params = new URLSearchParams(window.location.search);
-  const username = params.get("user");
-
-  if (username) {
-    user = { username, id: username };
-  } else {
-    if (!window.__phasmo_user_prompted) {
-      window.__phasmo_user_prompted = true;
-      const input = window.prompt("Enter a test username for this session:", "");
-      if (input) {
-        user = { username: input, id: input };
-      }
+    
+    const { access_token } = await response.json();
+    
+    // Authenticate with Discord
+    console.log("[Discord] Authenticating with access token...");
+    const auth = await discordSdk.commands.authenticate({ access_token });
+    
+    if (!auth?.user) {
+      throw new Error("Discord authentication returned no user data");
     }
-  }
-
-  if (user) {
-    renderAppWithUser(user);
-  } else {
-    root.render(
-      <div style={{ padding: 32, color: "red" }}>
-        No username provided. Please reload and enter a username.
-      </div>
-    );
+    
+    console.log("[Discord] Authentication successful:", auth.user.username);
+    return auth.user;
+    
+  } catch (error) {
+    console.error("[Discord] Authentication failed:", error);
+    throw error;
   }
 }
+
+// ================================================
+// LOCAL DEVELOPMENT USER SETUP
+// ================================================
+
+/**
+ * Gets or prompts for user credentials in development mode
+ * @returns {Object|null} User object or null if cancelled
+ */
+function getLocalUser() {
+  const params = new URLSearchParams(window.location.search);
+  const username = params.get("user");
+  
+  // Use URL parameter if provided
+  if (username) {
+    console.log("[Local] Using username from URL:", username);
+    return { username, id: username };
+  }
+  
+  // Prompt user for username (only once per session)
+  if (!window.__phasmo_user_prompted) {
+    window.__phasmo_user_prompted = true;
+    const input = window.prompt(
+      "Enter a username for this session:",
+      `User${Math.floor(Math.random() * 1000)}`
+    );
+    
+    if (input?.trim()) {
+      const username = input.trim();
+      console.log("[Local] Using prompted username:", username);
+      return { username, id: username };
+    }
+  }
+  
+  return null;
+}
+
+// ================================================
+// APPLICATION INITIALIZATION
+// ================================================
+
+/**
+ * Main initialization function that handles both Discord and local modes
+ */
+async function initializeApp() {
+  // Set up fetch patching for consistent API routing
+  setupFetchPatching();
+  
+  try {
+    let user = null;
+    
+    if (isDiscordActivity()) {
+      // Discord embedded app mode
+      console.log("[Init] Running in Discord Activity mode");
+      user = await authenticateWithDiscord();
+    } else {
+      // Local development mode
+      console.log("[Init] Running in local development mode");
+      user = getLocalUser();
+      
+      if (!user) {
+        renderError("No username provided. Please reload and enter a username.");
+        return;
+      }
+    }
+    
+    // Render app with authenticated user
+    renderAppWithUser(user);
+    
+  } catch (error) {
+    const errorMessage = isDiscordActivity() 
+      ? `Discord authentication failed: ${error.message}`
+      : `Local setup failed: ${error.message}`;
+    
+    renderError(errorMessage);
+  }
+}
+
+// ================================================
+// START APPLICATION
+// ================================================
+
+// Initialize the application
+initializeApp();

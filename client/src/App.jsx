@@ -9,6 +9,10 @@ import GhostTable from "./components/GhostTable/GhostTable.jsx";
 import { FaBookOpen, FaSkull, FaListAlt, FaSearch, FaQuestionCircle, FaRedoAlt, FaExclamationTriangle } from "react-icons/fa";
 import "../style.css";
 
+// ================================================
+// UTILITY FUNCTIONS
+// ================================================
+
 function filterGhosts(evidenceState, ghosts) {
   const circled = Object.entries(evidenceState)
     .filter(([_, v]) => v === "circled")
@@ -23,6 +27,10 @@ function filterGhosts(evidenceState, ghosts) {
   });
 }
 
+// ================================================
+// MOCK DATA FOR LOCAL DEVELOPMENT
+// ================================================
+
 const MOCK_STATE = {
   evidenceState: Object.fromEntries(evidenceTypes.map((e) => [e, "blank"])),
   boneFound: false,
@@ -33,21 +41,33 @@ const MOCK_STATE = {
   ],
 };
 
+// ================================================
+// MAIN APP COMPONENT
+// ================================================
+
 export default function App({ user }) {
+  // ================================================
+  // STATE MANAGEMENT
+  // ================================================
+  
   const [state, setState] = useState(null);
   const [connected, setConnected] = useState(true);
   const [ghostStates, setGhostStates] = useState({});
   const [showGhostTable, setShowGhostTable] = useState(false);
   const [wsError, setWsError] = useState(null);
-  const [mobilePage, setMobilePage] = useState("left");
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
+  
+  // Refs for polling client and audio elements
   const pollingRef = useRef(null);
-  // Add refs for audio
   const circleAudio = useRef();
   const crossAudio = useRef();
   const chooseAudio = useRef();
 
+  // ================================================
+  // CONNECTION & POLLING SETUP
+  // ================================================
+  
   useEffect(() => {
     if (!user) return;
     let client = createPollingClient(user, (msg) => {
@@ -68,6 +88,10 @@ export default function App({ user }) {
     };
   }, [user]);
 
+  // ================================================
+  // EVENT HANDLERS - EVIDENCE
+  // ================================================
+  
   function handleToggleEvidence(evidence) {
     if (!state || !pollingRef.current) return;
     const current = state.evidenceState[evidence] || "blank";
@@ -77,10 +101,13 @@ export default function App({ user }) {
         : current === "circled"
         ? "crossed"
         : "blank";
-    // Play sound
+    
+    // Play audio feedback
     if (next === "circled" && circleAudio.current) circleAudio.current.play();
     if (next === "crossed" && crossAudio.current) crossAudio.current.play();
     if (next === "blank" && chooseAudio.current) chooseAudio.current.play();
+    
+    // Update local state for immediate UI feedback
     setState((prev) => ({
       ...prev,
       evidenceState: {
@@ -88,6 +115,8 @@ export default function App({ user }) {
         [evidence]: next,
       },
     }));
+    
+    // Send update to server
     pollingRef.current.sendMessage({
       type: "evidence_update",
       evidence,
@@ -95,9 +124,13 @@ export default function App({ user }) {
       user,
     });
   }
+
+  // ================================================
+  // EVENT HANDLERS - SESSION CONTROLS
+  // ================================================
+  
   function handleBoneToggle(found) {
     if (!pollingRef.current) return;
-    // Update local state immediately for snappy UI
     setState((prev) => ({
       ...prev,
       boneFound: found,
@@ -108,9 +141,9 @@ export default function App({ user }) {
       user,
     });
   }
+  
   function handleCursedObjectToggle(found) {
     if (!pollingRef.current) return;
-    // Update local state immediately for snappy UI
     setState((prev) => ({
       ...prev,
       cursedObjectFound: found,
@@ -121,13 +154,17 @@ export default function App({ user }) {
       user,
     });
   }
-  // --- Only allow one ghost to be circled at a time ---
+
+  // ================================================
+  // EVENT HANDLERS - GHOST SELECTION
+  // ================================================
+  
   function handleGhostToggle(ghostName) {
     if (!pollingRef.current) return;
     const current = ghostStates[ghostName] || "none";
-    let next;
+    
     if (current === "none") {
-      next = "circled";
+      // Circle this ghost and uncircle all others
       if (circleAudio.current) circleAudio.current.play();
       const newGhostStates = Object.fromEntries(
         Object.keys(ghostStates).map((g) => [g, g === ghostName ? "circled" : "none"])
@@ -139,7 +176,7 @@ export default function App({ user }) {
         state: "circled",
         user,
       });
-      // Uncircle all others
+      // Send uncircle messages for other ghosts
       Object.keys(ghostStates).forEach((g) => {
         if (g !== ghostName && ghostStates[g] === "circled") {
           pollingRef.current.sendMessage({
@@ -150,22 +187,9 @@ export default function App({ user }) {
           });
         }
       });
-    } else if (current === "circled") {
-      next = "none";
-      if (chooseAudio.current) chooseAudio.current.play();
-      setGhostStates((prev) => ({
-        ...prev,
-        [ghostName]: "none",
-      }));
-      pollingRef.current.sendMessage({
-        type: "ghost_state_update",
-        ghostName,
-        state: "none",
-        user,
-      });
     } else {
-      // If crossed, go to none
-      next = "none";
+      // Clear any existing state
+      if (chooseAudio.current) chooseAudio.current.play();
       setGhostStates((prev) => ({
         ...prev,
         [ghostName]: "none",
@@ -179,14 +203,24 @@ export default function App({ user }) {
     }
   }
 
-  // --- Final Ghost logic: prefer circled ghost, else evidence logic ---
+  // ================================================
+  // COMPUTED VALUES
+  // ================================================
+  
   function getFinalGhost() {
+    // Prefer manually circled ghost over evidence logic
     const circled = Object.entries(ghostStates).find(([_, v]) => v === "circled");
     if (circled) return circled[0];
+    
+    // Fall back to evidence-based filtering
     const possibleGhosts = filterGhosts(effectiveState.evidenceState, ghosts);
     return possibleGhosts.length === 1 ? possibleGhosts[0].name : "?";
   }
 
+  // ================================================
+  // EVENT HANDLERS - RESET FUNCTIONALITY
+  // ================================================
+  
   function handleResetInvestigation() {
     setShowResetModal(false);
     setResetting(true);
@@ -199,9 +233,14 @@ export default function App({ user }) {
     setTimeout(() => setResetting(false), 1200);
   }
 
+  // ================================================
+  // RENDER LOGIC & ERROR HANDLING
+  // ================================================
+  
   const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
   const effectiveState = state || (isLocal ? MOCK_STATE : null);
 
+  // Error states
   if (!user) {
     return <div style={{ padding: 32, color: "red" }}>No user found. Please reload and enter a username.</div>;
   }
@@ -216,14 +255,22 @@ export default function App({ user }) {
     return <div style={{ padding: 32 }}>Connecting to book...</div>;
   }
 
+  // Computed values for render
   const users = [{ username: user.username }];
   const possibleGhosts = filterGhosts(effectiveState.evidenceState, ghosts);
   const finalGhost = getFinalGhost();
 
+  // ================================================
+  // MAIN RENDER
+  // ================================================
+  
   return (
     <>
       <div className="journal-app-main">
-        {/* Left Page */}
+        
+        {/* ================================================
+            LEFT PAGE - EVIDENCE & CONTROLS
+            ================================================ */}
         <div className="journal-page left">
           <h1 className="journal-title">
             <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
@@ -237,6 +284,7 @@ export default function App({ user }) {
             </b>{" "}
             {users.map((u) => u.username).join(", ")}
           </div>
+          
           <SessionControls
             users={users}
             boneFound={effectiveState.boneFound}
@@ -244,23 +292,47 @@ export default function App({ user }) {
             onBoneToggle={handleBoneToggle}
             onCursedObjectToggle={handleCursedObjectToggle}
           />
+          
           <h2 className="section-title evidence-section-title">
             <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
             Evidence
           </h2>
+          
           <Journal
             evidenceState={effectiveState.evidenceState}
             evidenceTypes={evidenceTypes}
             onToggle={handleToggleEvidence}
           />
+          
           <div className="status-bar">
             Status: {connected ? "Connected" : "Disconnected"}
           </div>
+          
+          {/* Mobile-only reset button */}
+          <div className="mobile-reset-btn-container">
+            <button
+              className="reset-investigation-btn"
+              onClick={() => setShowResetModal(true)}
+              disabled={resetting}
+              title="Start New Investigation"
+            >
+              <FaRedoAlt style={{ marginRight: 6, verticalAlign: "middle" }} />
+              {resetting ? "Resetting..." : "Start New Investigation"}
+            </button>
+          </div>
         </div>
-        {/* Book binding */}
+        
+        {/* ================================================
+            BOOK BINDING
+            ================================================ */}
         <div className="journal-binding" />
-        {/* Right Page */}
+        
+        {/* ================================================
+            RIGHT PAGE - GHOSTS & ACTIVITY
+            ================================================ */}
         <div className="journal-page right">
+          
+          {/* Ghost section header with final ghost display */}
           <div className="possible-ghosts-header-row">
             <div className="possible-ghosts-title-row">
               <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
@@ -276,7 +348,7 @@ export default function App({ user }) {
               </button>
             </div>
             <div className="final-ghost-inline">
-              <span className="final-ghost-label-inline">Final Ghost:</span>
+              <span className="final-ghost-label-inline">Ghost:</span>
               <span
                 className={
                   "final-ghost-value-inline" +
@@ -287,6 +359,8 @@ export default function App({ user }) {
               </span>
             </div>
           </div>
+          
+          {/* Ghost list */}
           <div className="possible-ghosts-list" style={{ marginBottom: "0" }}>
             <GhostList
               ghosts={ghosts}
@@ -297,9 +371,13 @@ export default function App({ user }) {
               onShowTable={() => setShowGhostTable(true)}
             />
           </div>
+          
+          {/* Ghost table modal */}
           {showGhostTable && (
             <GhostTable ghosts={ghosts} onClose={() => setShowGhostTable(false)} />
           )}
+          
+          {/* Activity log section */}
           <h2 className="section-title activity-log-title-main">
             <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
             Activity Log
@@ -307,8 +385,9 @@ export default function App({ user }) {
           <div className="activity-log-wrapper">
             <ActivityLog log={effectiveState.log || []} />
           </div>
-          {/* Move Start New Investigation button to the bottom of the page */}
-          <div style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
+          
+          {/* Desktop-only reset button */}
+          <div className="desktop-reset-btn-container" style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
             <button
               className="reset-investigation-btn"
               onClick={() => setShowResetModal(true)}
@@ -321,7 +400,9 @@ export default function App({ user }) {
           </div>
         </div>
 
-        {/* Stylized Reset Confirmation Modal */}
+        {/* ================================================
+            RESET CONFIRMATION MODAL
+            ================================================ */}
         {showResetModal && (
           <div className="reset-modal-backdrop">
             <div className="reset-modal">
@@ -351,25 +432,31 @@ export default function App({ user }) {
             </div>
           </div>
         )}
-        {/* Responsive styles */}
+        
+        {/* ================================================
+            RESPONSIVE STYLES
+            ================================================ */}
         <style>
           {`
+          /* Default: hide mobile button, show desktop button */
+          .mobile-reset-btn-container {
+            display: none;
+          }
+          .desktop-reset-btn-container {
+            display: flex;
+          }
+          
           @media (max-width: 900px) {
-            .journal-app-main {
-              flex-direction: column !important;
-              gap: var(--spacing-m) !important;
-              max-width: 100vw !important;
+            .mobile-reset-btn-container {
+              display: flex !important;
+              justify-content: center !important;
+              margin-top: 12px !important;
             }
-            .journal-page {
-              border-right: none !important;
-              margin: var(--spacing-s) 0 !important;
-              padding: var(--spacing-m) var(--spacing-xs) !important;
-              height: auto !important;
-              max-height: none !important;
-              width: 100% !important;
-              max-width: 100vw !important;
+            .desktop-reset-btn-container {
+              display: none !important;
             }
           }
+          
           .final-ghost-value-inline.final-ghost-unknown {
             font-weight: bold;
             letter-spacing: 0.18em;
@@ -378,7 +465,10 @@ export default function App({ user }) {
           `}
         </style>
       </div>
-      {/* Add audio elements for SFX */}
+      
+      {/* ================================================
+          AUDIO ELEMENTS FOR SOUND EFFECTS
+          ================================================ */}
       <audio ref={circleAudio} src="/circle.mp3" preload="auto" />
       <audio ref={crossAudio} src="/circle.mp3" preload="auto" />
       <audio ref={chooseAudio} src="/choose.wav" preload="auto" />

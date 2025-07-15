@@ -3,54 +3,84 @@ import dotenv from "dotenv";
 import fetch from "node-fetch";
 import { ghosts, evidenceTypes } from "./ghostData.js";
 
+// ================================================
+// CONFIGURATION & SETUP
+// ================================================
 
-// --- Load environment variables ---
+// Load environment variables from parent directory
 dotenv.config({ path: "../.env" });
 
-// --- Initialize Express app ---
+// Initialize Express app
 const app = express();
 const port = process.env.PORT || 3001;
 
-// --- Middleware ---
+// ================================================
+// MIDDLEWARE
+// ================================================
+
+// Parse JSON request bodies
 app.use(express.json());
 
-// --- Debug logging middleware for API routes ---
+// Debug logging for API routes only
 app.use((req, res, next) => {
   if (req.originalUrl.includes("/api/")) {
-    console.debug(`[DEBUG] Incoming API request:`);
-    console.debug(`  Method: ${req.method}`);
-    console.debug(`  Full route: ${req.originalUrl}`);
-    console.debug(`    baseUrl: ${req.baseUrl}`);
-    console.debug(`    path: ${req.path}`);
-    console.debug(`    query:`, req.query);
-    console.debug(`    body:`, req.body);
+    console.debug(`[API] ${req.method} ${req.originalUrl}`);
   }
   next();
 });
 
-/**
- * ------------------------------------------
- * ROUTER for both /api/* and /.proxy/api/*
- * ------------------------------------------
- */
+// ================================================
+// SHARED BOOK STATE MANAGEMENT
+// ================================================
 
+// Initialize default state helpers
+function getDefaultEvidenceState() {
+  const state = {};
+  evidenceTypes.forEach(evidence => { 
+    state[evidence] = 'blank'; 
+  });
+  return state;
+}
+
+function getDefaultGhostStates() {
+  const state = {};
+  ghosts.forEach(ghost => { 
+    state[ghost.name] = 'none'; 
+  });
+  return state;
+}
+
+// Single shared book state for all users
+let bookState = {
+  evidenceState: getDefaultEvidenceState(),
+  ghostStates: getDefaultGhostStates(),
+  log: [],
+  boneFound: false,
+  cursedObjectFound: false,
+};
+
+// ================================================
+// API ROUTER SETUP
+// ================================================
+
+// Create router for both /api/* and /.proxy/api/* endpoints
 const apiRouter = express.Router();
 
-/* =========================
-   Discord Token Endpoints
-   ========================= */
-apiRouter.post("/token", async (req, res) => {
-  console.log("[/api/token] Incoming request", {
-    body: req.body,
-    time: new Date().toISOString(),
-  });
+// ================================================
+// DISCORD AUTHENTICATION ENDPOINTS
+// ================================================
 
-  if (!req.body || !req.body.code) {
-    console.warn("[/api/token] Missing code in request body");
+// Exchange Discord OAuth code for access token
+apiRouter.post("/token", async (req, res) => {
+  console.log("[Discord Auth] Token exchange request");
+
+  if (!req.body?.code) {
+    console.warn("[Discord Auth] Missing authorization code");
     return res.status(400).json({ error: "Missing code in request body" });
   }
 
   try {
+    // Exchange code for access token with Discord
     const response = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: {
@@ -66,133 +96,132 @@ apiRouter.post("/token", async (req, res) => {
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      console.error("[/api/token] Discord token exchange failed:", text);
-      return res.status(500).json({ error: "Discord token exchange failed", details: text });
+      const errorText = await response.text();
+      console.error("[Discord Auth] Token exchange failed:", errorText);
+      return res.status(500).json({ 
+        error: "Discord token exchange failed", 
+        details: errorText 
+      });
     }
 
-    const data = await response.json();
-    if (!data.access_token) {
-      console.warn("[/api/token] No access_token in Discord response", data);
-      return res.status(500).json({ error: "No access_token in Discord response", details: data });
+    const tokenData = await response.json();
+    if (!tokenData.access_token) {
+      console.warn("[Discord Auth] No access token in response");
+      return res.status(500).json({ 
+        error: "No access_token in Discord response" 
+      });
     }
 
-    res.json({ access_token: data.access_token });
-  } catch (err) {
-    console.error("[/api/token] Error in /api/token:", err);
-    res.status(500).json({ error: "Internal server error", details: err.message });
+    res.json({ access_token: tokenData.access_token });
+  } catch (error) {
+    console.error("[Discord Auth] Token exchange error:", error);
+    res.status(500).json({ 
+      error: "Internal server error", 
+      details: error.message 
+    });
   }
 });
 
+// Handle GET requests to token endpoint (should be POST only)
 apiRouter.get("/token", (req, res) => {
   res.status(400).json({
-    error: "Invalid request. Use POST with authorization code."
+    error: "Invalid request method. Use POST with authorization code."
   });
 });
 
-/* =========================
-   Ghosts Data Endpoint
-   ========================= */
+// ================================================
+// GHOST DATA ENDPOINTS
+// ================================================
+
+// Get all ghost data for reference
 apiRouter.get("/ghosts", (req, res) => {
   res.json(ghosts);
 });
 
-/* =========================
-   Book State Helpers
-   ========================= */
-function getDefaultEvidenceState() {
-  const state = {};
-  evidenceTypes.forEach(e => { state[e] = 'blank'; });
-  return state;
-}
+// ================================================
+// BOOK STATE ENDPOINTS
+// ================================================
 
-function getDefaultGhostStates() {
-  const state = {};
-  ghosts.forEach(g => { state[g.name] = 'none'; });
-  return state;
-}
-
-/* =========================
-   Single Shared Book State
-   ========================= */
-let bookState = {
-  evidenceState: getDefaultEvidenceState(),
-  ghostStates: getDefaultGhostStates(),
-  log: [],
-  boneFound: false,
-  cursedObjectFound: false,
-};
-
-/* =========================
-   Book State Endpoints
-   ========================= */
-
-// Get current book state
+// Get current shared book state
 apiRouter.get("/book/state", (req, res) => {
   res.json(bookState);
 });
 
-// Apply an action to the book state
+// Apply user action to shared book state
 apiRouter.post("/book/action", (req, res) => {
-  const msg = req.body;
-  switch (msg.type) {
+  const action = req.body;
+  
+  switch (action.type) {
     case 'evidence_update':
-      bookState.evidenceState[msg.evidence] = msg.state;
+      // Update evidence state and log action
+      bookState.evidenceState[action.evidence] = action.state;
       bookState.log.push({
-        user: msg.user,
+        user: action.user,
         actionType: "evidence_update",
-        evidence: msg.evidence,
-        state: msg.state,
+        evidence: action.evidence,
+        state: action.state,
       });
       break;
-    case 'log_action':
-      bookState.log.push({
-        user: msg.user,
-        action: msg.action,
-      });
-      break;
-    case 'bone_update':
-      bookState.boneFound = msg.found;
-      bookState.log.push({
-        user: msg.user,
-        actionType: "bone_update",
-        found: msg.found,
-      });
-      break;
-    case 'cursed_object_update':
-      bookState.cursedObjectFound = msg.found;
-      bookState.log.push({
-        user: msg.user,
-        actionType: "cursed_object_update",
-        found: msg.found,
-      });
-      break;
+
     case 'ghost_state_update':
-      bookState.ghostStates[msg.ghostName] = msg.state;
+      // Update ghost state and log action
+      bookState.ghostStates[action.ghostName] = action.state;
       bookState.log.push({
-        user: msg.user,
+        user: action.user,
         actionType: "ghost_state_update",
-        ghostName: msg.ghostName,
-        state: msg.state,
+        ghostName: action.ghostName,
+        state: action.state,
       });
       break;
+
+    case 'bone_update':
+      // Update bone found status and log action
+      bookState.boneFound = action.found;
+      bookState.log.push({
+        user: action.user,
+        actionType: "bone_update",
+        found: action.found,
+      });
+      break;
+
+    case 'cursed_object_update':
+      // Update cursed object found status and log action
+      bookState.cursedObjectFound = action.found;
+      bookState.log.push({
+        user: action.user,
+        actionType: "cursed_object_update",
+        found: action.found,
+      });
+      break;
+
     case 'reset_investigation':
+      // Reset all investigation data
       bookState.evidenceState = getDefaultEvidenceState();
       bookState.ghostStates = getDefaultGhostStates();
       bookState.boneFound = false;
       bookState.cursedObjectFound = false;
       bookState.log.push({
-        user: msg.user,
-        action: `${msg.user.username} started a new investigation.`,
+        user: action.user,
+        action: `${action.user.username} started a new investigation.`,
       });
       break;
+
+    case 'log_action':
+      // Add custom log entry
+      bookState.log.push({
+        user: action.user,
+        action: action.action,
+      });
+      break;
+
     default:
       return res.status(400).json({ error: "Unknown action type" });
   }
+
   res.json({ ok: true });
 });
 
-// Reset the book state
+// Reset entire book state (admin function)
 apiRouter.post("/book/reset", (req, res) => {
   bookState = {
     evidenceState: getDefaultEvidenceState(),
@@ -204,20 +233,24 @@ apiRouter.post("/book/reset", (req, res) => {
   res.json({ ok: true });
 });
 
-/* =========================
-   Attach Routers and 404
-   ========================= */
+// ================================================
+// ROUTE REGISTRATION
+// ================================================
+
+// Register API router for both standard and Discord proxy paths
 app.use("/api", apiRouter);
 app.use("/.proxy/api", apiRouter);
 
-// 404 Catch-all (must be last!)
+// 404 handler for unknown routes
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-/* =========================
-   Start HTTP Server
-   ========================= */
+// ================================================
+// SERVER STARTUP
+// ================================================
+
 app.listen(port, "0.0.0.0", () => {
-  console.log(`[Server] HTTP server listening at http://0.0.0.0:${port}`);
+  console.log(`[Server] Phasmophobia Evidence Tracker API running on http://0.0.0.0:${port}`);
+  console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
 });
