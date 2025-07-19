@@ -53,7 +53,8 @@ export function createPollingClient(user, onMessage) {
     if (stopped) return;
     
     try {
-      const res = await fetch(`${apiBase}/book/state`);
+      const sessionId = user.sessionId || "default-session";
+      const res = await fetch(`${apiBase}/book/state?sessionId=${encodeURIComponent(sessionId)}`);
       if (res.ok) {
         const state = await res.json();
         // Only notify if state has changed
@@ -86,10 +87,11 @@ export function createPollingClient(user, onMessage) {
      */
     sendMessage: async (msg) => {
       try {
+        const sessionId = user.sessionId || "default-session";
         await fetch(`${apiBase}/book/action`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...msg, user }),
+          body: JSON.stringify({ ...msg, user, sessionId }),
         });
       } catch (err) {
         console.error("[Client] Failed to send message:", err);
@@ -102,10 +104,11 @@ export function createPollingClient(user, onMessage) {
      */
     resetBook: async (msg) => {
       try {
+        const sessionId = user.sessionId || "default-session";
         await fetch(`${apiBase}/book/reset`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user: msg.user }),
+          body: JSON.stringify({ user: msg.user, sessionId }),
         });
       } catch (err) {
         console.error("[Client] Failed to reset book:", err);

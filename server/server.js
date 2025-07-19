@@ -30,7 +30,7 @@ app.use((req, res, next) => {
 });
 
 // ================================================
-// SHARED BOOK STATE MANAGEMENT
+// SESSION-SCOPED BOOK STATE MANAGEMENT
 // ================================================
 
 // Initialize default state helpers
@@ -50,14 +50,46 @@ function getDefaultGhostStates() {
   return state;
 }
 
-// Single shared book state for all users
-let bookState = {
-  evidenceState: getDefaultEvidenceState(),
-  ghostStates: getDefaultGhostStates(),
-  log: [],
-  boneFound: false,
-  cursedObjectFound: false,
-};
+// Session-scoped book states (sessionId -> bookState)
+const sessionStates = {};
+
+// Helper to get or create session state
+function getSessionState(sessionId) {
+  if (!sessionStates[sessionId]) {
+    sessionStates[sessionId] = {
+      evidenceState: getDefaultEvidenceState(),
+      ghostStates: getDefaultGhostStates(),
+      log: [],
+      boneFound: false,
+      cursedObjectFound: false,
+      lastAccessed: Date.now(),
+    };
+  } else {
+    // Update last accessed time
+    sessionStates[sessionId].lastAccessed = Date.now();
+  }
+  return sessionStates[sessionId];
+}
+
+// Optional: Clean up old sessions (older than 24 hours)
+function cleanupOldSessions() {
+  const cutoffTime = Date.now() - (24 * 60 * 60 * 1000); // 24 hours
+  let cleanedCount = 0;
+  
+  for (const [sessionId, state] of Object.entries(sessionStates)) {
+    if (state.lastAccessed < cutoffTime) {
+      delete sessionStates[sessionId];
+      cleanedCount++;
+    }
+  }
+  
+  if (cleanedCount > 0) {
+    console.log(`[Cleanup] Removed ${cleanedCount} old sessions`);
+  }
+}
+
+// Run cleanup every hour
+setInterval(cleanupOldSessions, 60 * 60 * 1000);
 
 // ================================================
 // API ROUTER SETUP
@@ -142,20 +174,24 @@ apiRouter.get("/ghosts", (req, res) => {
 // BOOK STATE ENDPOINTS
 // ================================================
 
-// Get current shared book state
+// Get current session book state
 apiRouter.get("/book/state", (req, res) => {
-  res.json(bookState);
+  const sessionId = req.query.sessionId || "default-session";
+  const sessionState = getSessionState(sessionId);
+  res.json(sessionState);
 });
 
-// Apply user action to shared book state
+// Apply user action to session book state
 apiRouter.post("/book/action", (req, res) => {
   const action = req.body;
+  const sessionId = action.sessionId || "default-session";
+  const sessionState = getSessionState(sessionId);
   
   switch (action.type) {
     case 'evidence_update':
       // Update evidence state and log action
-      bookState.evidenceState[action.evidence] = action.state;
-      bookState.log.push({
+      sessionState.evidenceState[action.evidence] = action.state;
+      sessionState.log.push({
         user: action.user,
         actionType: "evidence_update",
         evidence: action.evidence,
@@ -165,8 +201,8 @@ apiRouter.post("/book/action", (req, res) => {
 
     case 'ghost_state_update':
       // Update ghost state and log action
-      bookState.ghostStates[action.ghostName] = action.state;
-      bookState.log.push({
+      sessionState.ghostStates[action.ghostName] = action.state;
+      sessionState.log.push({
         user: action.user,
         actionType: "ghost_state_update",
         ghostName: action.ghostName,
@@ -176,8 +212,8 @@ apiRouter.post("/book/action", (req, res) => {
 
     case 'bone_update':
       // Update bone found status and log action
-      bookState.boneFound = action.found;
-      bookState.log.push({
+      sessionState.boneFound = action.found;
+      sessionState.log.push({
         user: action.user,
         actionType: "bone_update",
         found: action.found,
@@ -186,8 +222,8 @@ apiRouter.post("/book/action", (req, res) => {
 
     case 'cursed_object_update':
       // Update cursed object found status and log action
-      bookState.cursedObjectFound = action.found;
-      bookState.log.push({
+      sessionState.cursedObjectFound = action.found;
+      sessionState.log.push({
         user: action.user,
         actionType: "cursed_object_update",
         found: action.found,
@@ -195,12 +231,12 @@ apiRouter.post("/book/action", (req, res) => {
       break;
 
     case 'reset_investigation':
-      // Reset all investigation data
-      bookState.evidenceState = getDefaultEvidenceState();
-      bookState.ghostStates = getDefaultGhostStates();
-      bookState.boneFound = false;
-      bookState.cursedObjectFound = false;
-      bookState.log.push({
+      // Reset all investigation data for this session
+      sessionState.evidenceState = getDefaultEvidenceState();
+      sessionState.ghostStates = getDefaultGhostStates();
+      sessionState.boneFound = false;
+      sessionState.cursedObjectFound = false;
+      sessionState.log.push({
         user: action.user,
         action: `${action.user.username} started a new investigation.`,
       });
@@ -208,7 +244,7 @@ apiRouter.post("/book/action", (req, res) => {
 
     case 'log_action':
       // Add custom log entry
-      bookState.log.push({
+      sessionState.log.push({
         user: action.user,
         action: action.action,
       });
@@ -221,9 +257,10 @@ apiRouter.post("/book/action", (req, res) => {
   res.json({ ok: true });
 });
 
-// Reset entire book state (admin function)
+// Reset entire session book state (admin function)
 apiRouter.post("/book/reset", (req, res) => {
-  bookState = {
+  const sessionId = req.body.sessionId || "default-session";
+  sessionStates[sessionId] = {
     evidenceState: getDefaultEvidenceState(),
     ghostStates: getDefaultGhostStates(),
     log: [],
