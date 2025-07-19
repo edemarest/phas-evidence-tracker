@@ -275,7 +275,7 @@ class DiscordSessionManager {
     const participants = await this.getParticipants();
     
     console.log('[Discord] Auto-joining session with', participants.length, 'participants');
-    console.log('[Discord] Participants:', participants.map(p => p.username || p.id));
+    console.log('[Discord] Participants:', participants.map(p => p.username || p.id).join(', '));
     
     // Use .proxy/ path for Discord Activity environment
     const apiPath = '/.proxy/api/sessions/discord-auto-join';

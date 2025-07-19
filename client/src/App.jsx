@@ -378,21 +378,26 @@ export default function App({ user }) {
           />
 
           <div className="status-bar">
-            Status: {connected ? "Connected" : "Disconnected"}
-            {getSessionCodeFromUser(user) && (
+            {/* Only show status and join code for browser sessions, not Discord */}
+            {!user?.isDiscordSession && (
               <>
-                {" • Join Code: "}
-                <span className="session-code-book">
-                  {getSessionCodeFromUser(user)}
-                </span>
-                <button
-                  className="session-code-copy-btn-book"
-                  onClick={handleCopySessionCode}
-                  title={sessionCodeCopied ? "Copied!" : "Copy join code"}
-                  disabled={sessionCodeCopied}
-                >
-                  <FaCopy />
-                </button>
+                Status: {connected ? "Connected" : "Disconnected"}
+                {getSessionCodeFromUser(user) && (
+                  <>
+                    {" • Join Code: "}
+                    <span className="session-code-book">
+                      {getSessionCodeFromUser(user)}
+                    </span>
+                    <button
+                      className="session-code-copy-btn-book"
+                      onClick={handleCopySessionCode}
+                      title={sessionCodeCopied ? "Copied!" : "Copy join code"}
+                      disabled={sessionCodeCopied}
+                    >
+                      <FaCopy />
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>
