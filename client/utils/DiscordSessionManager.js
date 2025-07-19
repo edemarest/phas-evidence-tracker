@@ -101,7 +101,10 @@ class DiscordSessionManager {
     
     console.log('[Discord] Auto-joining session with', participants.length, 'participants');
     
-    const response = await fetch('/api/sessions/discord-auto-join', {
+    // Use .proxy/ path for Discord Activity environment
+    const apiPath = '/.proxy/api/sessions/discord-auto-join';
+    
+    const response = await fetch(apiPath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -152,8 +155,11 @@ class DiscordSessionManager {
     console.log('[Discord] Participant update received:', event.participants.length, 'participants');
     
     try {
+      // Use .proxy/ path for Discord Activity environment
+      const apiPath = '/.proxy/api/sessions/discord-sync-participants';
+      
       // Sync participants with server
-      const response = await fetch('/api/sessions/discord-sync-participants', {
+      const response = await fetch(apiPath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

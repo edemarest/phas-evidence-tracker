@@ -44,66 +44,11 @@ export default function App({ user }) {
   const [resetting, setResetting] = useState(false);
   const [sessionCodeCopied, setSessionCodeCopied] = useState(false);
 
-  // Discord session management
-  const [isDiscordEnvironment, setIsDiscordEnvironment] = useState(false);
-  const [discordManager, setDiscordManager] = useState(null);
-  const [discordSessionActive, setDiscordSessionActive] = useState(false);
-
   // Refs for polling client and audio elements
   const pollingRef = useRef(null);
   const circleAudio = useRef();
   const crossAudio = useRef();
   const chooseAudio = useRef();
-
-  // ================================================
-  // DISCORD ENVIRONMENT DETECTION & INITIALIZATION
-  // ================================================
-
-  useEffect(() => {
-    const isDiscord = DiscordSessionManager.isDiscordEnvironment();
-    setIsDiscordEnvironment(isDiscord);
-    
-    if (isDiscord) {
-      console.log('[Discord] Discord environment detected - initializing auto-session');
-      initializeDiscordSession();
-    }
-  }, []);
-
-  const initializeDiscordSession = async () => {
-    try {
-      const manager = new DiscordSessionManager();
-      
-      // Initialize with Discord client ID (this would need to be configured)
-      const DISCORD_CLIENT_ID = process.env.REACT_APP_DISCORD_CLIENT_ID || 'your-discord-client-id';
-      
-      const sessionData = await manager.initialize(DISCORD_CLIENT_ID);
-      
-      setDiscordManager(manager);
-      setDiscordSessionActive(true);
-      
-      // Set up participant update handling
-      manager.onParticipantUpdate((participants, syncResult) => {
-        console.log('[Discord] Participant update:', participants.length, 'participants');
-        // The server state will be updated via polling, so we don't need to do anything special here
-      });
-      
-      console.log('[Discord] Auto-session initialized:', sessionData.sessionId);
-      
-      // Create a mock user object for the Discord session
-      const discordUser = {
-        username: sessionData.participants.find(p => p.isCurrentUser)?.username || 'Discord User',
-        sessionId: sessionData.sessionId,
-        isDiscordSession: true
-      };
-      
-      // Note: We would need to pass this user to the parent component
-      // For now, we'll rely on the normal polling to pick up the session
-      
-    } catch (error) {
-      console.error('[Discord] Failed to initialize Discord session:', error);
-      setIsDiscordEnvironment(false); // Fall back to manual session
-    }
-  };
 
   // ================================================
   // CONNECTION & POLLING SETUP
