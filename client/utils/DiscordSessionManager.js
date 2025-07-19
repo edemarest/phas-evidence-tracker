@@ -10,6 +10,8 @@ class DiscordSessionManager {
     this.currentSession = null;
     this.participantUpdateCallback = null;
     this.isInitialized = false;
+    this.authenticatedUser = null;
+    this.clientId = null;
   }
 
   /**
@@ -19,11 +21,17 @@ class DiscordSessionManager {
     try {
       console.log('[Discord] Initializing Discord SDK...');
       
+      // Store client ID for later use
+      this.clientId = clientId;
+      
       // Initialize Discord SDK
       this.discordSdk = new DiscordSDK(clientId);
       await this.discordSdk.ready();
       
       console.log('[Discord] SDK ready - instanceId:', this.discordSdk.instanceId);
+      
+      // First, authenticate the user to get proper access
+      await this.authenticateUser();
       
       // Auto-join session with current participants
       const sessionData = await this.autoJoinSession();
@@ -43,6 +51,61 @@ class DiscordSessionManager {
   }
 
   /**
+   * Authenticate user with Discord
+   */
+  async authenticateUser() {
+    try {
+      console.log('[Discord] Starting user authentication...');
+      
+      // Use stored client ID
+      if (!this.clientId) {
+        throw new Error('No client ID available for authentication');
+      }
+      
+      // Request authorization code
+      const { code } = await this.discordSdk.commands.authorize({
+        client_id: this.clientId,
+        response_type: "code", 
+        state: "",
+        prompt: "none",
+        scope: ["identify", "guilds"],
+      });
+      
+      console.log('[Discord] Got authorization code, exchanging for token...');
+      
+      // Exchange code for access token using the proxy path
+      const response = await fetch('/.proxy/api/token', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Token exchange failed: ${response.status}`);
+      }
+      
+      const { access_token } = await response.json();
+      
+      // Authenticate with Discord
+      console.log('[Discord] Authenticating with access token...');
+      const auth = await this.discordSdk.commands.authenticate({ access_token });
+      
+      if (auth?.user) {
+        console.log('[Discord] User authenticated:', auth.user.username);
+        this.authenticatedUser = auth.user;
+        return auth.user;
+      } else {
+        throw new Error('Authentication returned no user data');
+      }
+      
+    } catch (error) {
+      console.warn('[Discord] Authentication failed, continuing without user data:', error);
+      // Don't throw - we can still function with limited data
+      return null;
+    }
+  }
+
+  /**
    * Check if running in Discord environment
    */
   static isDiscordEnvironment() {
@@ -53,14 +116,61 @@ class DiscordSessionManager {
   /**
    * Get current Discord user info
    */
-  getCurrentUser() {
+  async getCurrentUser() {
     if (!this.discordSdk) return null;
     
-    // Note: In a real Discord app, you'd get this from authentication
-    // For now, we'll use instance data or mock it
+    // If we have authenticated user data, use it
+    if (this.authenticatedUser) {
+      return {
+        discordId: this.authenticatedUser.id,
+        username: this.authenticatedUser.username || this.authenticatedUser.global_name || 'Discord User'
+      };
+    }
+    
+    try {
+      // Try to get current user from Discord authentication if not already cached
+      const authResponse = await this.discordSdk.commands.authenticate({
+        scopes: [
+          'identify', // Get user basic info
+          'guilds'    // Get guild info if needed
+        ]
+      });
+      
+      if (authResponse && authResponse.user) {
+        console.log('[Discord] Authenticated user:', authResponse.user);
+        this.authenticatedUser = authResponse.user; // Cache it
+        return {
+          discordId: authResponse.user.id,
+          username: authResponse.user.username || authResponse.user.global_name || 'Discord User'
+        };
+      }
+    } catch (error) {
+      console.warn('[Discord] Failed to authenticate user:', error);
+    }
+    
+    // Fallback: try to get user from instance context
+    try {
+      // Get channel info which might have user context
+      if (this.discordSdk.channelId) {
+        const channel = await this.discordSdk.commands.getChannel();
+        console.log('[Discord] Channel info:', channel);
+        
+        // Try to get current user from the SDK instance
+        if (this.discordSdk.user) {
+          return {
+            discordId: this.discordSdk.user.id,
+            username: this.discordSdk.user.username || this.discordSdk.user.global_name || 'Discord User'
+          };
+        }
+      }
+    } catch (error) {
+      console.warn('[Discord] Failed to get channel/user info:', error);
+    }
+    
+    // Last resort fallback - use instance ID as identifier
     return {
-      discordId: 'current-user-id', // This would come from Discord auth
-      username: 'Discord User'       // This would come from Discord auth
+      discordId: 'discord-user-' + (this.discordSdk.instanceId || Date.now()),
+      username: 'Discord User'
     };
   }
 
@@ -75,20 +185,42 @@ class DiscordSessionManager {
     try {
       const response = await this.discordSdk.commands.getInstanceConnectedParticipants();
       console.log('[Discord] Retrieved participants:', response.participants.length);
-      return response.participants;
+      
+      // If we got real participants, use them
+      if (response.participants && response.participants.length > 0) {
+        return response.participants;
+      }
+      
+      // If no participants but we have a current user, at least include them
+      const currentUser = await this.getCurrentUser();
+      if (currentUser) {
+        return [{
+          id: currentUser.discordId,
+          username: currentUser.username
+        }];
+      }
+      
+      return [];
     } catch (error) {
       console.error('[Discord] Failed to get participants:', error);
-      // Return mock data for development
-      return [
-        {
-          id: 'user1',
-          username: 'TestUser1'
-        },
-        {
-          id: 'user2', 
-          username: 'TestUser2'
+      
+      // Return current user only as fallback
+      try {
+        const currentUser = await this.getCurrentUser();
+        if (currentUser) {
+          console.log('[Discord] Using current user as only participant');
+          return [{
+            id: currentUser.discordId,
+            username: currentUser.username
+          }];
         }
-      ];
+      } catch (userError) {
+        console.error('[Discord] Failed to get current user as fallback:', userError);
+      }
+      
+      // Absolute last resort - return empty array instead of mock data
+      console.warn('[Discord] No participants available, returning empty array');
+      return [];
     }
   }
 
@@ -97,9 +229,10 @@ class DiscordSessionManager {
    */
   async autoJoinSession() {
     const participants = await this.getParticipants();
-    const currentUser = this.getCurrentUser();
+    const currentUser = await this.getCurrentUser();
     
     console.log('[Discord] Auto-joining session with', participants.length, 'participants');
+    console.log('[Discord] Current user:', currentUser);
     
     // Use .proxy/ path for Discord Activity environment
     const apiPath = '/.proxy/api/sessions/discord-auto-join';
