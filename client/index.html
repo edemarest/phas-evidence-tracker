@@ -3,13 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Phas Evidence Tracker</title>
-    <!-- Optional: Add description/meta for SEO -->
-    <meta name="description" content="Phasmophobia Journal & Evidence Tracker for multiplayer and Discord Activities." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+        <title>Phas Evidence Tracker</title>
   </head>
   <body>
+    <div id="app-bg-video-wrapper">
+      <video id="app-bg-video" autoplay loop muted playsinline></video>
+    </div>
     <div id="app"></div>
     <script type="module" src="/main.jsx"></script>
+    <script>
+      // Set video src after DOM loads to avoid browser autoplay issues
+      document.addEventListener("DOMContentLoaded", () => {
+        const vid = document.getElementById("app-bg-video");
+        if (vid) vid.src = "/bg.mp4";
+      });
+    </script>
   </body>
 </html>

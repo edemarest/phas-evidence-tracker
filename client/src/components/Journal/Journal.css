@@ -2,7 +2,27 @@
 
 .journal-evidence {
   margin-bottom: var(--spacing-l);
-  color: var(--color-text-primary); /* Ensure dark text */
+  color: var(--color-text-primary);
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  flex: 1; /* Take up remaining space in evidence-content-area */
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Allow shrinking */
+  overflow: hidden;
+}
+
+.evidence-list,
+.evidence-list.evidence-grid {
+  width: 100%;
+  min-height: 0; /* Allow shrinking */
+  max-height: 100%; /* Constrain to parent */
+  background: none;
+  padding: 0;
+  flex: 1; /* Take up remaining space */
+  overflow-y: auto; /* Make scrollable when content exceeds height */
 }
 
 .evidence-list {

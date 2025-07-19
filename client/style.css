@@ -1,5 +1,8 @@
-/* 2️⃣ Theme Variables */
+/* ================================================
+   CSS CUSTOM PROPERTIES & DESIGN TOKENS
+   ================================================ */
 :root {
+  /* Color Palette */
   --color-bg-paper: #F5E1B9;
   --color-gridline: #C2A77D;
   --color-text-primary: #1a1a1a;
@@ -9,141 +12,391 @@
   --color-ghost-gray: #D9D9D6;
   --color-pencil-yellow: #F4C430;
 
+  /* Typography */
   --font-heading: 'Patrick Hand', cursive;
   --font-body: 'Shadows Into Light', cursive;
   --font-log: 'Architects Daughter', cursive;
 
+  /* Spacing Scale */
   --spacing-xs: 4px;
   --spacing-s: 6px;
   --spacing-m: 12px;
   --spacing-l: 18px;
   --spacing-xl: 32px;
 
+  /* Visual Effects */
   --radius: 8px;
   --shadow: 0 2px 4px rgba(44, 34, 22, 0.15);
 }
 
-/* 3️⃣ Global Styles */
+/* ================================================
+   BASE STYLES & GLOBAL LAYOUT
+   ================================================ */
+
+/* Document Body */
 body {
-  background: #2e1c0e;
+  background-color: #f5e1b9;
   font-family: var(--font-body);
   color: var(--color-text-primary);
   margin: 0;
   min-height: 100vh;
   line-height: 1.5;
+  position: relative;
+  overflow-x: hidden;
+  width: 100vw;
+  /* Paper-like grid background */
   background-image:
-    radial-gradient(ellipse at center, #3a2412 0%, #1a1107 100%),
     repeating-linear-gradient(to bottom, #c2a77d33 0 1px, transparent 1px 32px),
     repeating-linear-gradient(to right, #c2a77d33 0 1px, transparent 1px 32px);
-  background-size: cover, 32px 32px, 32px 32px;
-  background-blend-mode: multiply, normal, normal;
-  filter: blur(0) brightness(0.93);
-  position: relative;
+  background-size: 32px 32px;
+  background-blend-mode: multiply;
 }
 
-/* --- Layout fixes for book/iframe view --- */
-
-/* Ensure #app fills the viewport and centers the book */
-html, body {
-  width: 100vw;
-  height: 100vh;
-  min-height: 100vh;
-  min-width: 100vw;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-start; /* changed from center */
-  justify-content: center;
-  background: #2e1c0e;
+/* Video Background Overlay */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: rgba(30, 24, 20, 0.75);
+  backdrop-filter: blur(1.5px);
+  pointer-events: none;
+  transition: background 0.2s;
 }
 
+/* Main App Container */
 #app {
-  width: 100vw;
-  height: 100vh;
-  min-width: 320px;
-  min-height: 400px;
-  max-width: 100vw;
-  max-height: 100vh;
-  display: flex;
-  align-items: flex-start; /* changed from center */
-  justify-content: center;
-  background: #3a2412;
-  box-shadow: 0 0 64px 0 #000a, 0 0 0 12px #2e1c0e;
-  border-radius: 24px;
-  padding: 0;
-  position: relative;
-  z-index: 1;
-  overflow: hidden;
-}
-
-/* Book container: always centered, fixed height, scrolls internally if needed */
-.journal-app-main {
-  display: flex;
-  flex-direction: row;
-  width: 900px;
-  max-width: 96vw;
-  height: 92vh; /* slightly less than 100vh to avoid cut-off */
-  min-height: 480px;
-  max-height: 92vh;
-  margin: 4vh auto 0 auto; /* move book up a bit */
-  background: linear-gradient(90deg, #f5e1b9 0%, #f5e1b9 49%, #e9d3a3 51%, #e9d3a3 100%);
-  border-radius: 20px;
-  box-shadow: 0 0 32px #0002;
-  align-items: stretch;
-  position: relative;
-  z-index: 2;
-  overflow: visible;
-}
-
-/* Book binding effect */
-.journal-binding {
-  width: 18px;
-  min-width: 18px;
-  background: repeating-linear-gradient(
-    135deg,
-    #bfa76a 0px,
-    #bfa76a 6px,
-    #a88c5a 6px,
-    #a88c5a 12px
-  );
-  box-shadow: 0 0 8px #bfa76a55;
-  border-radius: 12px;
-  margin: 0 -2px;
-  z-index: 3;
-  position: relative;
-  height: 100%;
-  display: block;
-  align-self: stretch; /* ensure binding fills height */
-}
-
-/* Pages: always same height, scroll internally if needed */
-.journal-page {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  max-height: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ================================================
+   BACKGROUND VIDEO SYSTEM
+   ================================================ */
+
+#app-bg-video-wrapper {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#app-bg-video {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  filter: blur(12px) brightness(0.7);
+  position: absolute;
+  top: 0; 
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ================================================
+   JOURNAL BOOK CONTAINER & LAYOUT
+   ================================================ */
+
+/* Main Journal Container */
+.journal-app-main {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-areas: "left binding right";
+  height: min(750px, calc(100vh - 40px));
+  min-height: min(750px, calc(100vh - 40px));
+  max-height: min(750px, calc(100vh - 40px));
   background: var(--color-bg-paper);
-  box-shadow: var(--shadow);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  gap: 0;
+  position: relative;
+  align-items: start;
+  /* Book-like appearance */
+  box-shadow: 0 8px 32px #0004, 0 1.5px 0 #bfa76a;
+  border-radius: 18px;
+  margin: 0 auto;
+  max-width: 980px;
+  padding: 0 16px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Book Binding Between Pages */
+.journal-binding {
+  grid-area: binding;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  background: linear-gradient(90deg, #bfa76a 0%, #e7cca8 100%);
+  box-shadow: 0 0 12px 2px #bfa76a55;
+  border-left: 2px solid #c2a77d;
+  border-right: 2px solid #c2a77d;
+  z-index: 2;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-radius: 0;
+  margin: 0 0.5vw;
+  height: 100%;
+}
+
+/* Individual Journal Pages */
+.journal-page {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-paper) !important;
+  position: relative;
+  box-shadow: none;
   border-radius: 0;
   margin: 0;
   gap: var(--spacing-s);
-  overflow: hidden;
-  position: relative;
-  align-items: stretch;
-}
-
-.journal-page-content {
-  flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
-  overflow-y: auto;
-  padding-bottom: var(--spacing-m);
+  max-height: 100%;
+  overflow: hidden;
+  padding: 32px 28px 32px 28px;
+  border: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* Final ghost: prevent width expansion */
+.journal-page.left {
+  grid-area: left;
+}
+
+.journal-page.right {
+  grid-area: right;
+}
+
+/* ================================================
+   TYPOGRAPHY & TEXT STYLES
+   ================================================ */
+
+/* Main Journal Title */
+.journal-title {
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+/* Team Display */
+.ghost-hunting-team {
+  font-family: var(--font-log), cursive;
+  font-size: 1.05rem;
+  color: var(--color-text-primary);
+  margin-bottom: 0.3em;
+  margin-top: 0.1em;
+  letter-spacing: 0.01em;
+  word-break: break-word;
+}
+
+/* User Name Styling */
+.current-user {
+  color: var(--color-accent-red);
+  font-weight: bold;
+}
+
+.other-user {
+  color: var(--color-text-primary);
+}
+
+/* Section Titles */
+.evidence-section-title {
+  margin-bottom: 0.1em;
+  margin-top: 0.2em;
+}
+
+.possible-ghosts-title {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
+  white-space: nowrap;
+  font-size: 1.5rem;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  margin: 0;
+  padding: 0;
+}
+
+.activity-log-title-main {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+  font-weight: 700;
+  margin-bottom: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  letter-spacing: 0.01em;
+  background: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 0;
+}
+
+/* ================================================
+   LAYOUT CONTAINERS & CONTENT AREAS
+   ================================================ */
+
+/* Status Bar */
+.status-bar {
+  margin-top: auto;
+  font-size: 0.9em;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+/* Main Content Areas */
+.evidence-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.possible-ghosts-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.possible-ghosts-list {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ================================================
+   SESSION CONTROLS & JOIN CODE DISPLAY
+   ================================================ */
+
+/* Session Code Display */
+.session-code-book {
+  font-weight: bold;
+  color: #8B1538;
+  background: rgba(178, 34, 34, 0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-size: 0.9em;
+  letter-spacing: 0.02em;
+}
+
+/* Copy Button */
+.session-code-copy-btn-book {
+  background: none;
+  border: none;
+  color: #8B1538;
+  padding: 1px 3px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9em;
+  margin-left: 3px;
+  border-radius: 2px;
+}
+
+.session-code-copy-btn-book:hover:not(:disabled) {
+  color: #B22222;
+}
+
+.session-code-copy-btn-book:disabled {
+  color: #28a745;
+  cursor: default;
+}
+
+/* ================================================
+   GHOST LIST COMPONENTS
+   ================================================ */
+
+/* Ghost List Header */
+.possible-ghosts-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  flex-shrink: 0;
+}
+
+.possible-ghosts-header-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-m);
+  margin-bottom: var(--spacing-xs);
+  position: relative;
+}
+
+/* Ghost List Table Button */
+.ghost-list-table-btn {
+  margin: 0 0 0 4px !important;
+  padding: 0 2px;
+  font-size: 1.05em !important;
+  width: 1.5em;
+  height: 1.5em;
+  min-width: 0;
+  min-height: 0;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  color: var(--color-accent-red);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  transition: background 0.15s;
+  position: static !important;
+}
+
+.ghost-list-table-btn svg {
+  font-size: 1em;
+  vertical-align: middle;
+}
+
+.ghost-list-table-btn:hover,
+.ghost-list-table-btn:focus {
+  background: #f7e6c1;
+}
+
+/* Ghost List Items */
+.ghost-list-item {
+  min-width: 110px;
+  max-width: 100%;
+  box-sizing: border-box;
+  width: 100%;
+  transition: background 0.15s, color 0.15s, border 0.15s;
+}
+
+.ghost-list-item.circled,
+.ghost-list-item.crossed {
+  width: 100%;
+  min-width: 110px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* ================================================
+   FINAL GHOST DISPLAY
+   ================================================ */
+
 .final-ghost-inline {
   display: flex;
   align-items: center;
@@ -151,161 +404,177 @@ html, body {
   background: #f9e7c2;
   border: 1.5px solid var(--color-gridline);
   border-radius: 8px;
-  padding: 4px 10px 4px 10px;
-  font-size: 1.08em;
+  padding: 4px 14px 4px 10px;
+  font-size: 0.9em;
   font-family: var(--font-heading);
   color: var(--color-text-primary);
   box-shadow: 0 1px 4px #b2222230;
   min-width: 120px;
-  max-width: 160px;
   margin-right: 0;
+  height: 2.2em;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  gap: 8px;
 }
 
 .final-ghost-label-inline {
-  color: var(--color-text-secondary);
-  font-size: 0.98em;
-  margin-right: 7px;
-  font-weight: 500;
+  white-space: nowrap;
+  margin-right: 8px;
   flex-shrink: 0;
+  font-size: 1em;
 }
 
 .final-ghost-value-inline {
-  font-size: 1.18em;
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-size: 1.08em;
+}
+
+.final-ghost-value-inline.final-ghost-unknown {
   font-weight: bold;
+  letter-spacing: 0.18em;
+  font-size: 1.25em;
+}
+
+/* ================================================
+   RESET INVESTIGATION CONTROLS
+   ================================================ */
+
+/* Reset Button */
+.reset-investigation-btn {
+  display: inline-flex;
+  align-items: center;
+  background: #fffbe8;
   color: var(--color-accent-red);
-  letter-spacing: 0.04em;
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 70px;
-  display: inline-block;
+  border: 1.5px solid var(--color-accent-red);
+  border-radius: 8px;
+  font-family: var(--font-heading);
+  font-size: 1.04em;
+  font-weight: 600;
+  padding: 7px 18px 7px 12px;
+  margin: 5px 0 5px 0;
+  box-shadow: 0 1px 4px #b2222230;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border 0.15s;
+  outline: none;
 }
 
-/* Prevent ghost list grid from expanding page width */
-.ghost-list-grid {
-  min-width: 0;
-  width: 100%;
-  box-sizing: border-box;
+.reset-investigation-btn:hover,
+.reset-investigation-btn:focus {
+  background: var(--color-accent-red);
+  color: #fffbe8;
+  border-color: var(--color-accent-red);
 }
 
-/* --- Mobile-specific styles for journal page toggle --- */
-@media (max-width: 700px) {
-  #app {
-    max-width: 100vw;
-    min-width: 0;
-    height: 100vh;
-    padding: 0;
-    border-radius: 0;
-  }
-  .journal-app-main {
-    flex-direction: column;
-    min-height: 0;
-    max-width: 100vw;
-    width: 100vw;
-    gap: 0;
-    align-items: stretch;
-    position: relative;
-    box-shadow: none;
-  }
-  .journal-page {
-    border-radius: 0 !important;
-    border-left: none !important;
-    border-right: none !important;
-    margin: 0;
-    padding: var(--spacing-m) var(--spacing-xs);
-    height: 50vh;
-    max-height: 50vh;
-    min-height: 0;
-    width: 100vw;
-    box-shadow: none;
-    display: none; /* Hide by default, show via .mobile-active */
-  }
-  .journal-page.mobile-active {
-    display: flex !important;
-  }
-  .journal-binding {
-    display: none !important;
-  }
-  .mobile-page-toggle-bar {
-    display: flex;
-    width: 100vw;
-    justify-content: center;
-    align-items: center;
-    background: #3a2412;
-    border-bottom: 2px solid #bfa76a;
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 100;
-    height: 48px;
-    box-shadow: 0 2px 8px #0002;
-  }
-  .mobile-page-toggle-btn {
-    flex: 1 1 0;
-    background: none;
-    border: none;
-    color: var(--color-text-primary);
-    font-family: var(--font-heading);
-    font-size: 1.13em;
-    padding: 10px 0;
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    transition: border-color 0.18s, background 0.18s;
-    outline: none;
-  }
-  .mobile-page-toggle-btn.active,
-  .mobile-page-toggle-btn:focus {
-    border-bottom: 3px solid var(--color-accent-red);
-    background: #f5e1b9;
-    color: var(--color-accent-red);
-  }
-  /* Ensure content is not hidden behind toggle bar */
-  .journal-app-main {
-    margin-top: 48px;
-  }
+.reset-investigation-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-/* 5️⃣ Responsive Layout */
-@media (max-width: 900px) {
-  #app {
-    max-width: 98vw;
-    min-width: 0;
-    height: auto;
-    padding: 0;
-  }
-  .journal-app-main {
-    flex-direction: column;
-    min-height: 0;
-    max-width: 100vw;
-    width: 100%;
-    gap: 0;
-  }
-  .journal-page {
-    border-radius: 18px !important;
-    border-left: none !important;
-    border-right: none !important;
-    margin: var(--spacing-m) 0;
-    padding: var(--spacing-l) var(--spacing-xs);
-    height: auto;
-    max-height: none;
-  }
-  .journal-binding {
-    display: none;
-  }
+/* Reset Confirmation Modal */
+.reset-modal-backdrop {
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  right: 0; 
+  bottom: 0;
+  background: rgba(30,24,20,0.22);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* 6️⃣ Utility */
+.reset-modal {
+  background: #fffbe8;
+  border: 2.5px solid var(--color-accent-red);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px #0004;
+  padding: 32px 32px 24px 32px;
+  min-width: 320px;
+  max-width: 92vw;
+  text-align: center;
+  z-index: 2001;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.reset-modal-icon {
+  color: var(--color-accent-red);
+  font-size: 2.2em;
+  margin-bottom: 12px;
+}
+
+.reset-modal-title {
+  font-family: var(--font-heading);
+  font-size: 1.25em;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: var(--color-accent-red);
+}
+
+.reset-modal-msg {
+  font-size: 1.05em;
+  color: var(--color-text-primary);
+  margin-bottom: 22px;
+}
+
+.reset-modal-actions {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+}
+
+.reset-modal-btn {
+  font-family: var(--font-heading);
+  font-size: 1.05em;
+  border-radius: 8px;
+  padding: 7px 22px;
+  border: 1.5px solid var(--color-accent-red);
+  background: #fffbe8;
+  color: var(--color-accent-red);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border 0.15s;
+  outline: none;
+}
+
+.reset-modal-btn.confirm {
+  background: var(--color-accent-red);
+  color: #fffbe8;
+}
+
+.reset-modal-btn.cancel:hover,
+.reset-modal-btn.cancel:focus {
+  background: #f8ecd6;
+  color: var(--color-accent-red);
+}
+
+.reset-modal-btn.confirm:hover,
+.reset-modal-btn.confirm:focus {
+  background: #a11c1c;
+  color: #fffbe8;
+  border-color: #a11c1c;
+}
+
+.reset-modal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ================================================
+   UTILITY CLASSES & SHARED COMPONENTS
+   ================================================ */
+
 .paper-panel {
-  background: var(--color-bg-paper);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: var(--spacing-l);
+  padding-top: 0px !important;
+  padding: var(--spacing-m);
   margin-bottom: var(--spacing-s);
-  border: 1.5px solid var(--color-gridline);
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 
 .evidence-icon {
@@ -320,211 +589,225 @@ html, body {
   vertical-align: middle;
 }
 
-.journal-title {
-  margin: 0;
-  font-family: var(--font-heading);
+/* ================================================
+   ANIMATIONS
+   ================================================ */
+
+/* Discord Loading Animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.ghost-hunting-team {
-  font-family: var(--font-log), cursive;
-  font-size: 1.05rem;
-  color: var(--color-text-primary);
-  margin-bottom: 0.3em;
-  margin-top: 0.1em;
-  letter-spacing: 0.01em;
-  word-break: break-word;
+/* ================================================
+   RESPONSIVE DESIGN - MOBILE LAYOUT (< 900px)
+   ================================================ */
+
+@media (max-width: 900px) {
+  /* Mobile Body & App Container */
+  body {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    width: 100vw;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    height: auto !important;
+  }
+  
+  #app {
+    width: 100vw;
+    max-width: 100vw;
+    padding: 8px;
+    margin: 0;
+    min-height: 100vh;
+    height: auto !important;
+    box-sizing: border-box;
+    overflow: visible !important;
+    justify-content: flex-start !important;
+  }
+  
+  /* Mobile Journal Layout */
+  .journal-app-main {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    grid-template-areas: none !important;
+    gap: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 10px auto !important;
+    padding: 8px !important;
+    border-radius: 12px !important;
+    min-height: calc(100vh - 20px) !important;
+    height: auto !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+  
+  /* Mobile Binding (Horizontal Separator) */
+  .journal-binding {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    max-height: 20px !important;
+    background: linear-gradient(180deg, #bfa76a 0%, #e7cca8 100%) !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 2px solid #c2a77d !important;
+    border-bottom: 2px solid #c2a77d !important;
+    border-radius: 0 !important;
+    margin: 8px 0 !important;
+  }
+  
+  /* Mobile Pages */
+  .journal-page {
+    border-right: none !important;
+    margin: 0 !important;
+    padding: 16px 12px !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  
+  /* Mobile Typography Adjustments */
+  .journal-title {
+    font-size: 1.4rem !important;
+    margin-bottom: 8px !important;
+  }
+  
+  .ghost-hunting-team {
+    font-size: 0.95rem !important;
+    margin-bottom: 8px !important;
+  }
+  
+  .section-title,
+  .possible-ghosts-title,
+  .activity-log-title-main {
+    font-size: 1.2rem !important;
+    margin-bottom: 6px !important;
+    margin-top: 6px !important;
+  }
+  
+  /* Mobile Status Bar */
+  .status-bar {
+    flex-wrap: wrap;
+  }
+  
+  /* Mobile Activity Log */
+  .activity-log-wrapper {
+    min-height: 100px !important;
+    max-height: 150px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .activity-log-outer {
+    padding: 8px !important;
+    min-height: 100px !important;
+    max-height: 150px !important;
+  }
+  
+  .activity-log-scroll {
+    max-height: 120px !important;
+    min-height: 80px !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Mobile Reset Button Management */
+  .mobile-reset-btn-container {
+    display: flex !important;
+    justify-content: center !important;
+    margin-top: 12px !important;
+    margin-bottom: 8px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .desktop-reset-btn-container {
+    display: none !important;
+  }
+  
+  /* Mobile Component Compression */
+  .session-controls {
+    padding: 8px 12px !important;
+    margin-bottom: 8px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .ghost-list-container {
+    padding: 8px 12px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .ghost-list-grid {
+    gap: 8px 12px !important;
+  }
+  
+  .ghost-list-item {
+    padding: 6px 8px !important;
+    font-size: 0.95rem !important;
+    min-height: 24px !important;
+  }
+  
+  /* Mobile Evidence Section */
+  .journal-evidence {
+    flex-shrink: 0 !important;
+  }
+  
+  .evidence-list {
+    flex-shrink: 0 !important;
+  }
+  
+  /* Mobile Page Margins */
+  .journal-page.left {
+    margin-bottom: 0 !important;
+  }
+  
+  .journal-page.right {
+    margin-top: 0 !important;
+    margin-bottom: 16px !important;
+  }
 }
 
-.status-bar {
-  margin-top: auto;
-  font-size: 0.9em;
-  color: var(--color-text-secondary);
-}
+/* ================================================
+   RESPONSIVE DESIGN - EXTRA SMALL MOBILE (< 400px)
+   ================================================ */
 
-.evidence-section-title {
-  margin-bottom: 0.5em;
+@media (max-width: 400px) {
+  #app {
+    padding: 4px !important;
+  }
+  
+  .journal-app-main {
+    padding: 4px !important;
+  }
+  
+  .journal-page {
+    padding: 12px 8px !important;
+  }
+  
+  .ghost-list-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px 8px !important;
+  }
+  
+  .journal-title {
+    font-size: 1.2rem !important;
+  }
+  
+  .section-title,
+  .possible-ghosts-title,
+  .activity-log-title-main {
+    font-size: 1.1rem !important;
+  }
 }
-
-.possible-ghosts-title {
-  margin-top: 0;
-  margin-bottom: var(--spacing-xs);
-}
-
-.possible-ghosts-list {
-  flex: 0 1 auto;
-  max-height: none;
-  overflow: visible;
-  padding: 0;
-  margin-bottom: var(--spacing-s);
-}
-
-.activity-log-wrapper {
-  flex: 0 0 auto;
-  max-height: 110px;
-  min-height: 90px;
-  overflow-y: auto;
-  margin-bottom: var(--spacing-s);
-}
-
-.possible-ghosts-header-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-m);
-  margin-bottom: var(--spacing-xs);
-  position: relative;
-}
-
-.final-ghost-inline {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-  background: #f9e7c2;
-  border: 1.5px solid var(--color-gridline);
-  border-radius: 8px;
-  padding: 4px 10px 4px 10px;
-  font-size: 1.08em;
-  font-family: var(--font-heading);
-  color: var(--color-text-primary);
-  box-shadow: 0 1px 4px #b2222230;
-  min-width: 120px;
-  max-width: 160px;
-  margin-right: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.final-ghost-label-inline {
-  color: var(--color-text-secondary);
-  font-size: 0.98em;
-  margin-right: 7px;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-.final-ghost-value-inline {
-  font-size: 1.18em;
-  font-weight: bold;
-  color: var(--color-accent-red);
-  letter-spacing: 0.04em;
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 70px;
-  display: inline-block;
-}
-
-/* Remove @font-face rules if you don't have valid font files in /public/fonts/ */
-@font-face {
-  font-family: 'Patrick Hand';
-  src: url('/fonts/PatrickHand-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Shadows Into Light';
-  src: url('/fonts/ShadowsIntoLight-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Architects Daughter';
-  src: url('/fonts/ArchitectsDaughter-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Replace the above with system fonts if you don't have valid font files: */
-/*
-:root {
-  --font-heading: 'Segoe UI', 'Arial', sans-serif;
-  --font-body: 'Segoe UI', 'Arial', sans-serif;
-  --font-log: 'Segoe UI', 'Arial', sans-serif;
-}
-*/
-
-.activity-log-wrapper {
-  flex: 0 0 auto;
-  max-height: 110px;
-  min-height: 90px;
-  overflow-y: auto;
-  margin-bottom: var(--spacing-s);
-}
-
-.possible-ghosts-header-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-m);
-  margin-bottom: var(--spacing-xs);
-  position: relative;
-}
-
-.final-ghost-inline {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-  background: #f9e7c2;
-  border: 1.5px solid var(--color-gridline);
-  border-radius: 8px;
-  padding: 4px 14px 4px 10px;
-  font-size: 1.08em;
-  font-family: var(--font-heading);
-  color: var(--color-text-primary);
-  box-shadow: 0 1px 4px #b2222230;
-  min-width: 120px;
-  margin-right: 0;
-}
-
-.final-ghost-label-inline {
-  color: var(--color-text-secondary);
-  font-size: 0.98em;
-  margin-right: 7px;
-  font-weight: 500;
-}
-
-.final-ghost-value-inline {
-  font-size: 1.18em;
-  font-weight: bold;
-  color: var(--color-accent-red);
-  letter-spacing: 0.04em;
-}
-
-/* Remove @font-face rules if you don't have valid font files in /public/fonts/ */
-@font-face {
-  font-family: 'Patrick Hand';
-  src: url('/fonts/PatrickHand-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Shadows Into Light';
-  src: url('/fonts/ShadowsIntoLight-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Architects Daughter';
-  src: url('/fonts/ArchitectsDaughter-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Replace the above with system fonts if you don't have valid font files: */
-/*
-:root {
-  --font-heading: 'Segoe UI', 'Arial', sans-serif;
-  --font-body: 'Segoe UI', 'Arial', sans-serif;
-  --font-log: 'Segoe UI', 'Arial', sans-serif;
-}
-*/

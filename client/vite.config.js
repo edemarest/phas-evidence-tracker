@@ -1,31 +1,31 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import { defineConfig, loadEnv } from 'vite';
 
-export default defineConfig({
-  envDir: '../',
-  build: {
-    outDir: 'dist', // <-- FIX: Use 'dist' (default), not an absolute or relative path
-    emptyOutDir: true,
-  },
-  server: {
-    allowedHosts: [
-      'localhost',
-      'remarks-bread-breaking-anger.trycloudflare.com'
-    ],
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-      },
-      '/.proxy/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-        rewrite: path => path.replace(/^\/\.proxy\/api/, '/api'),
-      },
-    },
-  },
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  console.log("[VITE CONFIG] VITE_WS_URL =", env.VITE_WS_URL);
+
+  // Mode is "development" or "production"
+  const isDev = mode === 'development';
+
+  return {
+    envDir: '../',
+    server: isDev
+      ? {
+          allowedHosts: [
+            'localhost',
+            'remarks-bread-breaking-anger.trycloudflare.com'
+          ],
+          proxy: {
+            '/api': {
+              target: 'http://localhost:3001',
+              changeOrigin: true,
+              secure: false,
+              ws: true,
+            },
+          },
+        }
+      : undefined,
+  };
 });
+
+// No changes needed; Vite will use .env.local in dev and .env in prod

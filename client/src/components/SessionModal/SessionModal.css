@@ -1,0 +1,329 @@
+/* ================================================
+   SESSION MODAL STYLES
+   ================================================ */
+
+.session-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.session-modal {
+  background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+  border: 2px solid #444;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+}
+
+/* Header */
+.session-modal-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.session-modal-title {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin: 0 0 8px 0;
+  color: #ffffff;
+}
+
+.session-modal-subtitle {
+  font-size: 1rem;
+  color: #aaaaaa;
+  margin: 0;
+}
+
+/* Error Display */
+.session-modal-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(220, 53, 69, 0.2);
+  border: 1px solid #dc3545;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  color: #ff6b6b;
+  font-size: 0.9rem;
+}
+
+/* Content */
+.session-modal-content {
+  margin-bottom: 16px;
+}
+
+/* Choice Buttons */
+.session-choice-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.session-choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  background: linear-gradient(145deg, #333333, #262626);
+  border: 2px solid #444;
+  border-radius: 12px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.session-choice-btn:hover:not(:disabled) {
+  border-color: #007bff;
+  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+}
+
+.session-choice-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.session-choice-btn.new-investigation:hover:not(:disabled) {
+  border-color: #28a745;
+  box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+}
+
+.session-choice-btn.join-investigation:hover:not(:disabled) {
+  border-color: #17a2b8;
+  box-shadow: 0 8px 25px rgba(23, 162, 184, 0.3);
+}
+
+.session-choice-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
+
+.session-choice-btn.new-investigation .session-choice-icon {
+  color: #28a745;
+}
+
+.session-choice-btn.join-investigation .session-choice-icon {
+  color: #17a2b8;
+}
+
+.session-choice-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.session-choice-desc {
+  font-size: 0.9rem;
+  color: #aaaaaa;
+  line-height: 1.4;
+}
+
+/* Join Form */
+.session-join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.session-input-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.session-code-input {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid #444;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.1em;
+  text-align: center;
+  transition: border-color 0.3s ease;
+}
+
+.session-code-input:focus {
+  outline: none;
+  border-color: #007bff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.session-code-input::placeholder {
+  color: #888;
+}
+
+/* Session Code Display */
+.session-created-info {
+  text-align: center;
+}
+
+.session-code-display {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid #444;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.session-code-label {
+  display: block;
+  font-size: 0.9rem;
+  color: #aaaaaa;
+  margin-bottom: 12px;
+}
+
+.session-code-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.session-code-modal {
+  color: #ffffff;
+  font-size: 1.8rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+}
+
+.session-copy-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #666;
+  border-radius: 6px;
+  color: #ffffff;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.session-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #888;
+}
+
+.session-code-instructions {
+  color: #aaaaaa;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+/* Loading */
+.session-modal-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  color: #aaaaaa;
+  font-size: 0.9rem;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Action Buttons */
+.session-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.session-modal-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.session-modal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.session-modal-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid #666;
+}
+
+.session-modal-btn.secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #888;
+}
+
+.session-modal-btn.primary {
+  background: linear-gradient(145deg, #007bff, #0056b3);
+  color: #ffffff;
+  border: 1px solid #0056b3;
+}
+
+.session-modal-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(145deg, #0056b3, #003d82);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .session-modal {
+    padding: 24px;
+    margin: 20px;
+  }
+  
+  .session-choice-btn {
+    padding: 20px;
+  }
+  
+  .session-choice-icon {
+    font-size: 2rem;
+  }
+  
+  .session-code-modal {
+    font-size: 1.5rem;
+    padding: 10px 16px;
+  }
+  
+  .session-modal-actions {
+    flex-direction: column;
+  }
+}

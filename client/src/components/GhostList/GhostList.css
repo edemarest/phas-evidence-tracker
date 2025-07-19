@@ -1,42 +1,54 @@
 /* Add GhostList-specific styles here */
 
 .ghost-list-container {
-  background: linear-gradient(135deg, #f7e6c1 0%, #e9d3a3 100%);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 8px #c2a77d33, var(--shadow);
+  /* Remove background, border, and shadow */
+  /* background: linear-gradient(135deg, #f7e6c1 0%, #e9d3a3 100%); */
+  /* border-radius: var(--radius); */
+  /* box-shadow: 0 2px 8px #c2a77d33, var(--shadow); */
   padding: var(--spacing-m) var(--spacing-l);
-  margin-bottom: var(--spacing-l);
+  margin-bottom: var(--spacing-s);
   color: var(--color-text-primary);
-  height: auto;
-  min-height: 0;
-  max-height: none;
-  overflow: visible; /* <-- fix: ensure container is not scrollable */
+  height: 100%;
+  min-height: 0; /* Allow shrinking */
+  max-height: 100%; /* Constrain to parent */
+  overflow-y: auto; /* Make scrollable when content exceeds height */
+  overflow-x: hidden; /* Prevent horizontal scroll */
   position: relative;
-  border: 1.5px solid var(--color-gridline);
-  background-blend-mode: multiply;
+  /* border: 1.5px solid var(--color-gridline); */
+  background: none;
+  border: none;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  box-sizing: border-box; /* Include padding in size calculations */
+  width: 100%; /* Ensure it doesn't exceed parent width */
 }
 
 .ghost-list-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 columns for 24 ghosts = 8 per col */
-  gap: var(--spacing-m) var(--spacing-l);
+  grid-template-columns: 1fr 1fr 1fr; /* Always 3 equal columns */
+  gap: var(--spacing-m) var(--spacing-s); /* Reduce horizontal gap to fit more content */
   width: 100%;
-  /* Remove scroll/height constraints */
-  max-height: none;   /* <-- fix: remove scroll/height constraints */
-  overflow: visible;  /* <-- fix: remove scroll */
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  align-items: stretch;
+  overflow: visible;
+  box-sizing: border-box;
 }
 
-@media (max-width: 700px) {
+/* Responsive grid adjustments */
+@media (max-width: 600px) {
   .ghost-list-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr 1fr; /* 2 columns on smaller screens */
+    gap: var(--spacing-s) var(--spacing-xs); /* Smaller gaps on mobile */
   }
 }
-@media (max-width: 500px) {
+
+@media (max-width: 400px) {
   .ghost-list-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* Single column on very small screens */
   }
 }
 
@@ -58,6 +70,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box; /* Include padding and border in size */
+  width: 100%; /* Ensure full width within grid cell */
+  overflow: hidden; /* Prevent text overflow */
+  word-wrap: break-word; /* Break long words if needed */
 }
 
 /* --- Only one set of styles for circled/crossed ghost states --- */

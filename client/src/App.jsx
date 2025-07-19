@@ -1,209 +1,148 @@
 import React, { useEffect, useRef, useState } from "react";
-import { createWSClient } from "../utils/wsClient.js";
-import { ghosts, evidenceTypes } from "../../server/ghostData.js";
+import { createPollingClient } from "../utils/wsClient.js";
+import { ghosts, evidenceTypes } from "./ghostData.js";
 import Journal from "./components/Journal/Journal.jsx";
 import GhostList from "./components/GhostList/GhostList.jsx";
 import ActivityLog from "./components/ActivityLog/ActivityLog.jsx";
 import SessionControls from "./components/SessionControls/SessionControls.jsx";
 import GhostTable from "./components/GhostTable/GhostTable.jsx";
-import { FaBookOpen, FaSkull, FaListAlt, FaSearch, FaQuestionCircle } from "react-icons/fa";
-import "../style.css"; // Ensure global styles are imported
+import DiscordSessionManager from "../utils/DiscordSessionManager.js";
+import { FaBookOpen, FaSkull, FaListAlt, FaSearch, FaQuestionCircle, FaRedoAlt, FaExclamationTriangle, FaCopy } from "react-icons/fa";
+import "../style.css";
 
-// Helper to filter ghosts based on evidence state
-function filterGhosts(evidenceState, ghosts) {
-  const circled = Object.entries(evidenceState)
-    .filter(([_, v]) => v === "circled")
-    .map(([k]) => k);
-  const crossed = Object.entries(evidenceState)
-    .filter(([_, v]) => v === "crossed")
-    .map(([k]) => k);
+// ================================================
+// MOCK DATA FOR LOCAL DEVELOPMENT
+// ================================================
 
-  return ghosts.filter((ghost) => {
-    // Must have all circled evidence
-    if (!circled.every((e) => ghost.evidences.includes(e))) return false;
-    // Must not have any crossed evidence
-    if (crossed.some((e) => ghost.evidences.includes(e))) return false;
-    return true;
-  });
-}
+const MOCK_STATE = {
+  evidenceState: Object.fromEntries(evidenceTypes.map((e) => [e, "blank"])),
+  boneFound: false,
+  cursedObjectFound: false,
+  possibleGhosts: [],
+  finalGhost: null,
+  log: [
+    { user: { username: "misty" }, actionType: "evidence_update", evidence: "EMF Level 5", state: "circled" },
+    { user: { username: "misty" }, actionType: "bone_update", found: true },
+  ],
+};
+
+// ================================================
+// MAIN APP COMPONENT
+// ================================================
 
 export default function App({ user }) {
-  // Use sessionId from user object if present
-  const sessionId = user.sessionId || "default-session";
+  // ================================================
+  // STATE MANAGEMENT
+  // ================================================
 
   const [state, setState] = useState(null);
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState(true);
   const [ghostStates, setGhostStates] = useState({});
   const [showGhostTable, setShowGhostTable] = useState(false);
   const [wsError, setWsError] = useState(null);
-  const [finalGhost, setFinalGhost] = useState("?");
-  const [mobilePage, setMobilePage] = useState("left"); // "left" or "right"
-  const wsRef = useRef(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [sessionCodeCopied, setSessionCodeCopied] = useState(false);
+
+  // Refs for polling client and audio elements
+  const pollingRef = useRef(null);
+  const circleAudio = useRef();
+  const crossAudio = useRef();
+  const chooseAudio = useRef();
+
+  // ================================================
+  // CONNECTION & POLLING SETUP
+  // ================================================
 
   useEffect(() => {
     if (!user) return;
-    let ws;
-    let closed = false;
-    try {
-      ws = createWSClient(sessionId, user, (msg) => {
-        switch (msg.type) {
-          case "ghost_state_update":
-            if (msg.ghostStates) {
-              setGhostStates(msg.ghostStates);
-            } else if (msg.ghostName && msg.state) {
-              setGhostStates((prev) => ({
-                ...prev,
-                [msg.ghostName]: msg.state,
-              }));
-            }
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        actionType: "ghost_state_update",
-                        ghostName: msg.ghostName,
-                        state: msg.state,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            if ("finalGhost" in msg) {
-              setFinalGhost(msg.finalGhost || "?");
-            }
-            break;
-          case "sync_state":
-            setState(msg.state);
-            setGhostStates(msg.state.ghostStates || {});
-            setFinalGhost(msg.state.finalGhost || "?");
-            break;
-          case "evidence_update":
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    evidenceState: {
-                      ...prev.evidenceState,
-                      [msg.evidence]: msg.state,
-                    },
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        actionType: "evidence_update",
-                        evidence: msg.evidence,
-                        state: msg.state,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            // Listen for finalGhost in evidence_update
-            if ("finalGhost" in msg) {
-              setFinalGhost(msg.finalGhost || "?");
-            }
-            break;
-          case "bone_update":
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    boneFound: msg.found,
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        actionType: "bone_update",
-                        found: msg.found,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            break;
-          case "cursed_object_update":
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    cursedObjectFound: msg.found,
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        actionType: "cursed_object_update",
-                        found: msg.found,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            break;
-          case "log_action":
-            setState((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    log: [
-                      ...prev.log,
-                      {
-                        user: msg.user,
-                        action: msg.action,
-                      },
-                    ],
-                  }
-                : prev
-            );
-            break;
-          case "user_joined":
-          case "user_left":
-            setState((prev) => ({ ...prev }));
-            break;
-          default:
-            break;
-        }
-      });
-      ws.onerror = (event) => {
-        setWsError("WebSocket connection error. Please check your network or backend server.");
-        setConnected(false);
-      };
-      ws.onclose = (event) => {
-        if (!closed) {
-          setWsError("WebSocket connection closed unexpectedly.");
-          setConnected(false);
-        }
-      };
-      wsRef.current = ws;
-      setConnected(true);
-    } catch (err) {
-      setWsError("Failed to connect to WebSocket: " + err.message);
-      setConnected(false);
-    }
+    let client = createPollingClient(user, (msg) => {
+      if (msg.type === "sync_state") {
+        setState(msg.state);
+        setGhostStates(msg.state.ghostStates || {});
+      }
+    });
+    pollingRef.current = client;
+    setConnected(true);
+    setWsError(null);
     return () => {
-      closed = true;
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
+      if (pollingRef.current) {
+        pollingRef.current.close();
+        pollingRef.current = null;
       }
       setConnected(false);
     };
   }, [user]);
 
-  // Evidence toggle handler
+  // ================================================
+  // WINDOW UNLOAD HANDLING
+  // ================================================
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handleBeforeUnload = async (event) => {
+      // Attempt to disconnect gracefully
+      if (pollingRef.current && pollingRef.current.disconnect) {
+        try {
+          await pollingRef.current.disconnect();
+        } catch (err) {
+          console.warn("[App] Failed to disconnect on page unload:", err);
+        }
+      }
+    };
+
+    const handleUnload = () => {
+      // Synchronous disconnect as backup
+      if (pollingRef.current && pollingRef.current.disconnect) {
+        navigator.sendBeacon && navigator.sendBeacon(`/api/session/disconnect`, JSON.stringify({
+          sessionId: user.sessionId || "default-session",
+          userId: user.id || user.username || "anonymous"
+        }));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+    };
+  }, [user]);
+
+  // ================================================
+  // EVENT HANDLERS - EVIDENCE
+  // ================================================
+
   function handleToggleEvidence(evidence) {
-    if (!state || !wsRef.current) return;
+    if (!state || !pollingRef.current) return;
     const current = state.evidenceState[evidence] || "blank";
     const next =
       current === "blank"
         ? "circled"
         : current === "circled"
-        ? "crossed"
-        : "blank";
-    wsRef.current.sendMessage({
+          ? "crossed"
+          : "blank";
+
+    // Play audio feedback
+    if (next === "circled" && circleAudio.current) circleAudio.current.play();
+    if (next === "crossed" && crossAudio.current) crossAudio.current.play();
+    if (next === "blank" && chooseAudio.current) chooseAudio.current.play();
+
+    // Update local state for immediate UI feedback
+    setState((prev) => ({
+      ...prev,
+      evidenceState: {
+        ...prev.evidenceState,
+        [evidence]: next,
+      },
+    }));
+
+    // Send update to server
+    pollingRef.current.sendMessage({
       type: "evidence_update",
       evidence,
       state: next,
@@ -211,196 +150,425 @@ export default function App({ user }) {
     });
   }
 
-  // Bone/cursed object toggle handlers
+  // ================================================
+  // EVENT HANDLERS - SESSION CONTROLS
+  // ================================================
+
   function handleBoneToggle(found) {
-    if (!wsRef.current) return;
-    wsRef.current.sendMessage({
+    if (!pollingRef.current) return;
+    setState((prev) => ({
+      ...prev,
+      boneFound: found,
+    }));
+    pollingRef.current.sendMessage({
       type: "bone_update",
       found,
       user,
     });
   }
+
   function handleCursedObjectToggle(found) {
-    if (!wsRef.current) return;
-    wsRef.current.sendMessage({
+    if (!pollingRef.current) return;
+    setState((prev) => ({
+      ...prev,
+      cursedObjectFound: found,
+    }));
+    pollingRef.current.sendMessage({
       type: "cursed_object_update",
       found,
       user,
     });
   }
 
-  // Ghost toggle handler
+  // ================================================
+  // EVENT HANDLERS - GHOST SELECTION
+  // ================================================
+
   function handleGhostToggle(ghostName) {
-    if (!wsRef.current) return;
+    if (!pollingRef.current) return;
     const current = ghostStates[ghostName] || "none";
-    const next =
-      current === "none"
-        ? "circled"
-        : current === "circled"
-        ? "crossed"
-        : "none";
-    wsRef.current.sendMessage({
-      type: "ghost_state_update",
-      ghostName,
-      state: next,
-      user,
-    });
-    // Optimistically update local state for instant feedback
-    setGhostStates((prev) => ({
-      ...prev,
-      [ghostName]: next,
-    }));
+
+    if (current === "none") {
+      // Circle this ghost and uncircle all others
+      if (circleAudio.current) circleAudio.current.play();
+      const newGhostStates = Object.fromEntries(
+        Object.keys(ghostStates).map((g) => [g, g === ghostName ? "circled" : "none"])
+      );
+      setGhostStates(newGhostStates);
+      pollingRef.current.sendMessage({
+        type: "ghost_state_update",
+        ghostName,
+        state: "circled",
+        user,
+      });
+      // Send uncircle messages for other ghosts
+      Object.keys(ghostStates).forEach((g) => {
+        if (g !== ghostName && ghostStates[g] === "circled") {
+          pollingRef.current.sendMessage({
+            type: "ghost_state_update",
+            ghostName: g,
+            state: "none",
+            user,
+          });
+        }
+      });
+    } else {
+      // Clear any existing state
+      if (chooseAudio.current) chooseAudio.current.play();
+      setGhostStates((prev) => ({
+        ...prev,
+        [ghostName]: "none",
+      }));
+      pollingRef.current.sendMessage({
+        type: "ghost_state_update",
+        ghostName,
+        state: "none",
+        user,
+      });
+    }
   }
 
+  // ================================================
+  // EVENT HANDLERS - RESET FUNCTIONALITY
+  // ================================================
+
+  function handleResetInvestigation() {
+    setShowResetModal(false);
+    setResetting(true);
+    if (pollingRef.current) {
+      pollingRef.current.sendMessage({
+        type: "reset_investigation",
+        user,
+      });
+    }
+    setTimeout(() => setResetting(false), 1200);
+  }
+
+  // ================================================
+  // EVENT HANDLERS - SESSION CODE COPY
+  // ================================================
+
+  async function handleCopySessionCode() {
+    try {
+      const sessionCode = getSessionCodeFromUser(user);
+      if (sessionCode) {
+        await navigator.clipboard.writeText(sessionCode);
+        setSessionCodeCopied(true);
+        setTimeout(() => setSessionCodeCopied(false), 2000);
+      }
+    } catch (err) {
+      console.warn("Failed to copy session code to clipboard:", err);
+    }
+  }
+
+  // Helper function to extract session code from user object
+  function getSessionCodeFromUser(user) {
+    if (!user?.sessionId) return null;
+
+    // Extract code from different session ID formats
+    if (user.sessionId.startsWith('session-')) {
+      return user.sessionId.replace('session-', '');
+    }
+
+    // For Discord sessions or other formats, show a truncated version
+    if (user.sessionId.length > 8) {
+      return user.sessionId.substring(0, 8).toUpperCase();
+    }
+
+    return user.sessionId.toUpperCase();
+  }
+
+  // ================================================
+  // RENDER LOGIC & ERROR HANDLING
+  // ================================================
+
+  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const effectiveState = state || (isLocal ? MOCK_STATE : null);
+
+  // Error states
   if (!user) {
     return <div style={{ padding: 32, color: "red" }}>No user found. Please reload and enter a username.</div>;
   }
-  if (wsError) {
-    return <div style={{ padding: 32, color: "red" }}>{wsError}</div>;
+  if (!effectiveState) {
+    if (wsError) {
+      return (
+        <div style={{ padding: 32, color: "red" }}>
+          {wsError}
+        </div>
+      );
+    }
+    return <div style={{ padding: 32 }}>Connecting to book...</div>;
   }
-  if (!state) {
-    return <div style={{ padding: 32 }}>Connecting to session...</div>;
-  }
 
-  // For now, users list is not tracked in state, so just show current user
-  const users = [{ username: user.username }];
+  // Computed values for render
+  const activeUsers = effectiveState.activeUsers || [];
+  const participants = effectiveState.participants || [];
+  
+  // Use participants if available (Discord sessions), otherwise fall back to activeUsers
+  const users = participants.length > 0 
+    ? participants
+    : activeUsers.length > 0 
+      ? activeUsers.map(userId => ({ username: userId }))
+      : [{ username: user.username }]; // Fallback to current user if no data
+  
+  // Use server-computed values (possibleGhosts and finalGhost come from server)
+  const possibleGhosts = effectiveState.possibleGhosts || [];
+  const finalGhost = effectiveState.finalGhost || "?";
 
-  const possibleGhosts = filterGhosts(state.evidenceState, ghosts);
-
-  // Detect mobile
-  const isMobile = typeof window !== "undefined" && window.innerWidth <= 700;
+  // ================================================
+  // MAIN RENDER
+  // ================================================
 
   return (
-    <div>
-      {/* Mobile toggle bar */}
-      {isMobile && (
-        <div className="mobile-page-toggle-bar">
-          <button
-            className={`mobile-page-toggle-btn${mobilePage === "left" ? " active" : ""}`}
-            onClick={() => setMobilePage("left")}
-            aria-label="Show Journal"
-          >
-            Journal
-          </button>
-          <button
-            className={`mobile-page-toggle-btn${mobilePage === "right" ? " active" : ""}`}
-            onClick={() => setMobilePage("right")}
-            aria-label="Show Ghosts"
-          >
-            Ghosts
-          </button>
-        </div>
-      )}
+    <>
       <div className="journal-app-main">
-        <div
-          className={
-            "journal-page left" +
-            (isMobile ? (mobilePage === "left" ? " mobile-active" : "") : "")
-          }
-        >
-          <div className="journal-page-content">
-            <h1 className="journal-title">
-              <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
-              Phasmophobia Journal
-            </h1>
-            <div className="ghost-hunting-team">
-              <b>
-                <FaSkull style={{ marginRight: 4, verticalAlign: "middle" }} />
-                Ghost Hunting Team:
-              </b>{" "}
-              {users.map((u) => u.username).join(", ")}
-            </div>
-            <SessionControls
-              users={users}
-              boneFound={state.boneFound}
-              cursedObjectFound={state.cursedObjectFound}
-              onBoneToggle={handleBoneToggle}
-              onCursedObjectToggle={handleCursedObjectToggle}
-            />
+
+        {/* ================================================
+            LEFT PAGE - EVIDENCE & CONTROLS
+            ================================================ */}
+        <div className="journal-page left">
+          <h1 className="journal-title">
+            <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
+            Phasmophobia Journal
+          </h1>
+
+          <div className="ghost-hunting-team">
+            <b>
+              <FaSkull style={{ marginRight: 4, verticalAlign: "middle" }} />
+              Ghost Hunting Team:
+            </b>{" "}
+            {users.map((u, index) => {
+              const isCurrentUser = u.username === user.username;
+              console.log(`[App] User ${u.username} === ${user.username}? ${isCurrentUser}`);
+              
+              return (
+                <span key={u.username || index}>
+                  {index > 0 && ", "}
+                  <span 
+                    className={isCurrentUser ? "current-user" : "other-user"}
+                    style={{
+                      color: isCurrentUser ? "#B22222" : "inherit",
+                      fontWeight: isCurrentUser ? "bold" : "normal"
+                    }}
+                  >
+                    {u.username}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+
+          <SessionControls
+            users={users}
+            boneFound={effectiveState.boneFound}
+            cursedObjectFound={effectiveState.cursedObjectFound}
+            onBoneToggle={handleBoneToggle}
+            onCursedObjectToggle={handleCursedObjectToggle}
+          />
+
+          <div className="evidence-content-area">
             <h2 className="section-title evidence-section-title">
               <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
               Evidence
             </h2>
+
             <Journal
-              evidenceState={state.evidenceState}
+              evidenceState={effectiveState.evidenceState}
               evidenceTypes={evidenceTypes}
               onToggle={handleToggleEvidence}
             />
           </div>
+
           <div className="status-bar">
-            Status: {connected ? "Connected" : "Disconnected"}
+            {/* Only show status and join code for browser sessions, not Discord */}
+            {!user?.isDiscordSession && (
+              <>
+                Status: {connected ? "Connected" : "Disconnected"}
+                {getSessionCodeFromUser(user) && (
+                  <>
+                    {" • Join Code: "}
+                    <span className="session-code-book">
+                      {getSessionCodeFromUser(user)}
+                    </span>
+                    <button
+                      className="session-code-copy-btn-book"
+                      onClick={handleCopySessionCode}
+                      title={sessionCodeCopied ? "Copied!" : "Copy join code"}
+                      disabled={sessionCodeCopied}
+                    >
+                      <FaCopy />
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Mobile-only reset button */}
+          <div className="mobile-reset-btn-container">
+            <button
+              className="reset-investigation-btn"
+              onClick={() => setShowResetModal(true)}
+              disabled={resetting}
+              title="Start New Investigation"
+            >
+              <FaRedoAlt style={{ marginRight: 6, verticalAlign: "middle" }} />
+              {resetting ? "Resetting..." : "Start New Investigation"}
+            </button>
           </div>
         </div>
-        {!isMobile && <div className="journal-binding" aria-hidden="true"></div>}
-        <div
-          className={
-            "journal-page right" +
-            (isMobile ? (mobilePage === "right" ? " mobile-active" : "") : "")
-          }
-        >
-          <div className="journal-page-content">
+
+        {/* ================================================
+            BOOK BINDING
+            ================================================ */}
+        <div className="journal-binding" />
+
+        {/* ================================================
+            RIGHT PAGE - GHOSTS & ACTIVITY
+            ================================================ */}
+        <div className="journal-page right">
+          <div className="possible-ghosts-content-area">
+            {/* Ghost section header with final ghost display */}
             <div className="possible-ghosts-header-row">
-              <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
-                <FaListAlt style={{ marginRight: 8, verticalAlign: "middle" }} />
-                Possible Ghosts
-              </h2>
-              <button
-                className="ghost-list-table-btn"
-                title="Show all ghosts table"
-                style={{ marginLeft: 8, marginTop: 2, fontSize: "1.2em" }}
-                onClick={() => setShowGhostTable(true)}
-              >
-                <FaQuestionCircle />
-              </button>
+              <div className="possible-ghosts-title-row">
+                <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
+                  <FaListAlt style={{ marginRight: 8, verticalAlign: "middle" }} />
+                  Possible Ghosts
+                </h2>
+                <button
+                  className="ghost-list-table-btn"
+                  title="Show all ghosts table"
+                  onClick={() => setShowGhostTable(true)}
+                >
+                  <FaQuestionCircle />
+                </button>
+              </div>
               <div className="final-ghost-inline">
-                <span className="final-ghost-label-inline">Final Ghost:</span>
-                <span className="final-ghost-value-inline">
-                  {!finalGhost || finalGhost === "?" ? "???" : finalGhost}
+                <span className="final-ghost-label-inline">Ghost:</span>
+                <span
+                  className={
+                    "final-ghost-value-inline" +
+                    (finalGhost === "?" ? " final-ghost-unknown" : "")
+                  }
+                >
+                  {finalGhost === "?" ? "???" : finalGhost}
                 </span>
               </div>
             </div>
+
+            {/* Ghost list */}
             <div className="possible-ghosts-list" style={{ marginBottom: "0" }}>
               <GhostList
                 ghosts={ghosts}
                 possibleGhosts={possibleGhosts}
                 ghostStates={ghostStates}
                 onGhostToggle={handleGhostToggle}
-                evidenceState={state.evidenceState}
+                evidenceState={effectiveState.evidenceState}
                 onShowTable={() => setShowGhostTable(true)}
               />
             </div>
-            {showGhostTable && (
-              <GhostTable ghosts={ghosts} onClose={() => setShowGhostTable(false)} />
-            )}
-            <h2 className="section-title activity-log-title-main">
-              <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
-              Activity Log
-            </h2>
-            <div className="activity-log-wrapper">
-              <ActivityLog log={state.log || []} />
-            </div>
+          </div>
+
+          {/* Ghost table modal */}
+          {showGhostTable && (
+            <GhostTable ghosts={ghosts} onClose={() => setShowGhostTable(false)} />
+          )}
+
+          {/* Activity log section */}
+          <h2 className="section-title activity-log-title-main">
+            <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
+            Activity Log
+          </h2>
+          <div className="activity-log-wrapper">
+            <ActivityLog log={effectiveState.log || []} />
+          </div>
+
+          {/* Desktop-only reset button */}
+          <div className="desktop-reset-btn-container" style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
+            <button
+              className="reset-investigation-btn"
+              onClick={() => setShowResetModal(true)}
+              disabled={resetting}
+              title="Start New Investigation"
+            >
+              <FaRedoAlt style={{ marginRight: 6, verticalAlign: "middle" }} />
+              {resetting ? "Resetting..." : "Start New Investigation"}
+            </button>
           </div>
         </div>
+
+        {/* ================================================
+            RESET CONFIRMATION MODAL
+            ================================================ */}
+        {showResetModal && (
+          <div className="reset-modal-backdrop">
+            <div className="reset-modal">
+              <FaExclamationTriangle className="reset-modal-icon" />
+              <div className="reset-modal-title">Start New Investigation?</div>
+              <div className="reset-modal-msg">
+                This will <b>reset all evidence, ghosts, and progress</b> for this session.<br />
+                Are you sure you want to continue?
+              </div>
+              <div className="reset-modal-actions">
+                <button
+                  className="reset-modal-btn cancel"
+                  onClick={() => setShowResetModal(false)}
+                  disabled={resetting}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="reset-modal-btn confirm"
+                  onClick={handleResetInvestigation}
+                  disabled={resetting}
+                >
+                  <FaRedoAlt style={{ marginRight: 5, verticalAlign: "middle" }} />
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================
+            RESPONSIVE STYLES
+            ================================================ */}
+        <style>
+          {`
+          /* Default: hide mobile button, show desktop button */
+          .mobile-reset-btn-container {
+            display: none;
+          }
+          .desktop-reset-btn-container {
+            display: flex;
+          }
+          
+          @media (max-width: 900px) {
+            .mobile-reset-btn-container {
+              display: flex !important;
+              justify-content: center !important;
+              margin-top: 12px !important;
+            }
+            .desktop-reset-btn-container {
+              display: none !important;
+            }
+          }
+          
+          .final-ghost-value-inline.final-ghost-unknown {
+            font-weight: bold;
+            letter-spacing: 0.18em;
+            font-size: 1.25em;
+          }
+          `}
+        </style>
       </div>
-      {/* Responsive styles */}
-      <style>
-        {`
-        @media (max-width: 900px) {
-          .journal-app-main {
-            flex-direction: column !important;
-            gap: var(--spacing-m) !important;
-            max-width: 100vw !important;
-          }
-          .journal-page {
-            border-right: none !important;
-            margin: var(--spacing-s) 0 !important;
-            padding: var(--spacing-m) var(--spacing-xs) !important;
-            height: auto !important;
-            max-height: none !important;
-          }
-        }
-        `}
-      </style>
-    </div>
+
+      {/* ================================================
+          AUDIO ELEMENTS FOR SOUND EFFECTS
+          ================================================ */}
+      <audio ref={circleAudio} src="/circle.mp3" preload="auto" />
+      <audio ref={crossAudio} src="/circle.mp3" preload="auto" />
+      <audio ref={chooseAudio} src="/choose.wav" preload="auto" />
+    </>
   );
 }

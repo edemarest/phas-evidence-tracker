@@ -1,15 +1,400 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./src/App";
-import "./style.css";
 import { DiscordSDK } from "@discord/embedded-app-sdk";
+import App from "./src/App";
+import SessionModal from "./src/components/SessionModal/SessionModal";
+import DiscordSessionManager from "./utils/DiscordSessionManager";
+import "./style.css";
+
+// ================================================
+// USERNAME PROMPT COMPONENT
+// ================================================
+
+/**
+ * Username prompt for client-side testing
+ */
+function UsernamePrompt({ onUsernameSubmit }) {
+  const [username, setUsername] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const trimmedUsername = username.trim();
+    
+    if (!trimmedUsername) {
+      setError('Please enter a username');
+      return;
+    }
+    
+    if (trimmedUsername.length < 2) {
+      setError('Username must be at least 2 characters');
+      return;
+    }
+    
+    if (trimmedUsername.length > 20) {
+      setError('Username must be 20 characters or less');
+      return;
+    }
+    
+    onUsernameSubmit(trimmedUsername);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0, 0, 0, 0.8)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10000
+    }}>
+      <div style={{
+        background: 'linear-gradient(145deg, #2a2a2a, #1e1e1e)',
+        border: '2px solid #444',
+        borderRadius: '16px',
+        padding: '32px',
+        maxWidth: '400px',
+        width: '90%',
+        color: '#ffffff',
+        textAlign: 'center'
+      }}>
+        <h2 style={{ marginBottom: '16px', color: '#ffffff' }}>Enter Your Username</h2>
+        <p style={{ marginBottom: '24px', color: '#aaaaaa' }}>
+          Choose a username to identify yourself in the session
+        </p>
+        
+        <form onSubmit={handleSubmit}>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => {
+              setUsername(e.target.value);
+              setError('');
+            }}
+            placeholder="Your username"
+            autoFocus
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              marginBottom: '16px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: error ? '2px solid #dc3545' : '2px solid #444',
+              borderRadius: '8px',
+              color: '#ffffff',
+              fontSize: '16px',
+              boxSizing: 'border-box'
+            }}
+          />
+          
+          {error && (
+            <div style={{
+              color: '#ff6b6b',
+              fontSize: '14px',
+              marginBottom: '16px'
+            }}>
+              {error}
+            </div>
+          )}
+          
+          <button
+            type="submit"
+            style={{
+              width: '100%',
+              padding: '12px 24px',
+              background: 'linear-gradient(145deg, #007bff, #0056b3)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            Continue
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ================================================
+// ENVIRONMENT DETECTION & ROUTING
+// ================================================
+
+/**
+ * Detects if the app is running as a Discord Activity
+ * @returns {boolean} True if running in Discord Activity context
+ */
+function isDiscordActivity() {
+  return window.location.search.includes("frame_id") ||
+         window.location.hostname.endsWith("discordsays.com");
+}
+
+/**
+ * Determines the correct API token endpoint based on environment
+ * @returns {string} The token endpoint URL to use
+ */
+function getTokenUrl() {
+  if (isDiscordActivity()) {
+    console.log("[API] Discord Activity detected, using /.proxy/api/token");
+    return "/.proxy/api/token";
+  }
+  if (import.meta.env.MODE === "production") {
+    console.log("[API] Production mode, using full backend URL");
+    return "https://phas-evidence-backend.onrender.com/api/token";
+  }
+  console.log("[API] Development mode, using /api/token");
+  return "/api/token";
+}
+
+// ================================================
+// FETCH PATCHING FOR CONSISTENT API ROUTING
+// ================================================
+
+/**
+ * Patches global fetch to ensure token requests use correct API paths
+ * This handles cases where different parts of the app might use different URL formats
+ */
+function setupFetchPatching() {
+  const originalFetch = window.fetch;
+  
+  window.fetch = async (...args) => {
+    let [url, options] = args;
+    
+    // Extract URL string from Request object if needed
+    if (url && typeof url === "object" && url.url) {
+      url = url.url;
+    }
+    
+    // Rewrite token endpoint URLs to use correct API path
+    if (typeof url === "string" && url.match(/^\/token($|\?)/)) {
+      url = getTokenUrl();
+      console.debug("[Fetch] Rewriting token URL to:", url);
+    }
+    
+    return originalFetch(url, options);
+  };
+}
+
+// ================================================
+// REACT APP RENDERING
+// ================================================
 
 const root = createRoot(document.getElementById("app"));
-
 let hasRendered = false;
-async function renderAppWithUser(user) {
+
+/**
+ * SessionWrapper component handles session initialization
+ */
+function SessionWrapper() {
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [pendingSessionData, setPendingSessionData] = useState(null);
+  const [isDiscordAutoSession, setIsDiscordAutoSession] = useState(false);
+  const [discordSessionLoading, setDiscordSessionLoading] = useState(false);
+
+  // Check for Discord environment on mount
+  React.useEffect(() => {
+    const isDiscord = DiscordSessionManager.isDiscordEnvironment();
+    if (isDiscord) {
+      console.log('[Discord] Discord environment detected - starting auto-session');
+      setIsDiscordAutoSession(true);
+      setDiscordSessionLoading(true);
+      initializeDiscordAutoSession();
+    }
+  }, []);
+
+  const initializeDiscordAutoSession = async () => {
+    try {
+      console.log('[Discord] Initializing Discord auto-session...');
+      
+      const manager = new DiscordSessionManager();
+      const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || 'your-discord-client-id';
+      
+      const sessionData = await manager.initialize(DISCORD_CLIENT_ID);
+      
+      // Find current user from participants
+      const currentParticipant = sessionData.participants.find(p => p.isCurrentUser);
+      const username = currentParticipant?.username || 'Discord User';
+      
+      console.log('[Discord] Auto-session created:', {
+        sessionId: sessionData.sessionId,
+        username,
+        participantCount: sessionData.participants.length
+      });
+      
+      // Create user object for Discord session
+      const discordUser = {
+        username,
+        id: currentParticipant?.discordId || username,
+        sessionId: sessionData.sessionId,
+        isDiscordSession: true
+      };
+      
+      setUser(discordUser);
+      setSessionStarted(true);
+      setDiscordSessionLoading(false);
+      
+    } catch (error) {
+      console.error('[Discord] Auto-session failed:', error);
+      setError(`Discord auto-session failed: ${error.message}`);
+      setIsDiscordAutoSession(false);
+      setDiscordSessionLoading(false);
+      // Fall back to manual session creation
+    }
+  };
+
+  const handleSessionStart = async (sessionData) => {
+    try {
+      console.log("[Session] Starting session with data:", sessionData);
+      
+      let authenticatedUser = null;
+      
+      if (isDiscordActivity()) {
+        // Discord mode - authenticate and use session from modal
+        authenticatedUser = await authenticateWithDiscord();
+        // Override sessionId with the one from the modal
+        authenticatedUser.sessionId = sessionData.sessionId;
+        setUser(authenticatedUser);
+        setSessionStarted(true);
+      } else {
+        // Local mode - check if we need a username
+        let username = localStorage.getItem('phas-username');
+        if (!username) {
+          // Show username prompt first
+          setPendingSessionData(sessionData);
+          setShowUsernamePrompt(true);
+          return;
+        }
+        
+        // Create user with stored username
+        authenticatedUser = {
+          username: username,
+          id: username,
+          sessionId: sessionData.sessionId
+        };
+        setUser(authenticatedUser);
+        setSessionStarted(true);
+      }
+      
+    } catch (error) {
+      console.error("[Session] Failed to start session:", error);
+      setError(error.message);
+    }
+  };
+
+  const handleUsernameSubmit = (username) => {
+    localStorage.setItem('phas-username', username);
+    setShowUsernamePrompt(false);
+    
+    // Now create the user with the provided username
+    const authenticatedUser = {
+      username: username,
+      id: username,
+      sessionId: pendingSessionData.sessionId
+    };
+    setUser(authenticatedUser);
+    setSessionStarted(true);
+    setPendingSessionData(null);
+  };
+
+  if (error) {
+    return (
+      <div style={{ padding: 32, color: "red", textAlign: "center" }}>
+        <h3>Session Error</h3>
+        <p>{error}</p>
+        <button 
+          onClick={() => { setError(null); setSessionStarted(false); setIsDiscordAutoSession(false); }}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer"
+          }}
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  // Show Discord loading state
+  if (isDiscordAutoSession && discordSessionLoading) {
+    return (
+      <div style={{ 
+        padding: 32, 
+        textAlign: "center",
+        background: "var(--color-bg-paper)",
+        color: "var(--color-text-primary)",
+        fontFamily: "var(--font-body)",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        <h3 style={{ fontFamily: "var(--font-heading)", marginBottom: "16px" }}>
+          🎮 Connecting to Discord Activity...
+        </h3>
+        <p>Setting up your investigation session...</p>
+        <div style={{ 
+          marginTop: "16px",
+          width: "32px",
+          height: "32px",
+          border: "3px solid var(--color-gridline)",
+          borderTop: "3px solid var(--color-accent-red)",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite"
+        }}></div>
+      </div>
+    );
+  }
+
+  if (showUsernamePrompt) {
+    return <UsernamePrompt onUsernameSubmit={handleUsernameSubmit} />;
+  }
+
+  // Skip session modal for Discord auto-sessions
+  if (!sessionStarted && !isDiscordAutoSession) {
+    return <SessionModal onSessionStart={handleSessionStart} />;
+  }
+
+  // Show loading if Discord session is starting but not yet ready
+  if (isDiscordAutoSession && !sessionStarted) {
+    return (
+      <div style={{ 
+        padding: 32, 
+        textAlign: "center",
+        color: "var(--color-text-primary)"
+      }}>
+        Preparing Discord session...
+      </div>
+    );
+  }
+
+  return <App user={user} />;
+}
+
+/**
+ * Renders the main App component with user context
+ * Prevents duplicate rendering attempts
+ * @param {Object} user - User object with username and id
+ */
+function renderAppWithUser(user) {
   if (hasRendered) return;
   hasRendered = true;
+  
+  console.log("[Render] Starting app with user:", user.username);
   root.render(
     <React.StrictMode>
       <App user={user} />
@@ -17,115 +402,153 @@ async function renderAppWithUser(user) {
   );
 }
 
-if (window.location.search.includes("frame_id")) {
-  (async () => {
-    let auth = null;
-    let discordSdk = null;
-    let user = null;
-    let sessionId = "default-session";
+/**
+ * Renders the session wrapper (new main entry point)
+ */
+function renderSessionWrapper() {
+  if (hasRendered) return;
+  hasRendered = true;
+  
+  console.log("[Render] Starting session wrapper");
+  root.render(
+    <React.StrictMode>
+      <SessionWrapper />
+    </React.StrictMode>
+  );
+}
+
+/**
+ * Renders error state when authentication or setup fails
+ * @param {string} message - Error message to display
+ */
+function renderError(message) {
+  console.error("[Render]", message);
+  root.render(
+    <div style={{ padding: 32, color: "red", textAlign: "center" }}>
+      <h3>Authentication Error</h3>
+      <p>{message}</p>
+      <p>Please try refreshing the page.</p>
+    </div>
+  );
+}
+
+// ================================================
+// DISCORD AUTHENTICATION FLOW
+// ================================================
+
+/**
+ * Handles Discord OAuth authentication for embedded app
+ * @returns {Promise<Object>} Authenticated user object
+ */
+async function authenticateWithDiscord() {
+  try {
+    // Initialize Discord SDK
+    const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
+    window.discordSdk = discordSdk; // Expose for debugging
+    
+    console.log("[Discord] Initializing SDK...");
+    await discordSdk.ready();
+    
+    // Request authorization code
+    console.log("[Discord] Requesting authorization...");
+    const { code } = await discordSdk.commands.authorize({
+      client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
+      response_type: "code",
+      state: "",
+      prompt: "none",
+      scope: ["identify", "guilds", "applications.commands"],
+    });
+    
+    // Exchange code for access token
+    console.log("[Discord] Exchanging code for token...");
+    const tokenUrl = getTokenUrl();
+    const response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
+    }
+    
+    const { access_token } = await response.json();
+    
+    // Authenticate with Discord
+    console.log("[Discord] Authenticating with access token...");
+    const auth = await discordSdk.commands.authenticate({ access_token });
+    
+    if (!auth?.user) {
+      throw new Error("Discord authentication returned no user data");
+    }
+    
+    // Get Discord context for session scoping
+    let sessionId = `discord-user-${auth.user.id}-${Date.now()}`;
     try {
-      discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
-      await discordSdk.ready();
-
-      // Authorize with Discord Client
-      const { code } = await discordSdk.commands.authorize({
-        client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
-        response_type: "code",
-        state: "",
-        prompt: "none",
-        scope: ["identify", "guilds", "applications.commands"],
-      });
-
-      // Retrieve an access_token from your activity's server
-      let tokenUrl;
-      if (window.location.hostname.endsWith("onrender.com")) {
-        // On Render Static Site, use /api/token (Render proxies this to backend)
-        tokenUrl = "/api/token";
-      } else if (window.location.search.includes("frame_id")) {
-        // In Discord Activity, use /.proxy/api/token
-        tokenUrl = "/.proxy/api/token";
-      } else {
-        // Local dev or fallback
-        tokenUrl = "/api/token";
-      }
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-
-      // Debug: log the response for troubleshooting
-      let debugText = "";
-      try {
-        debugText = await response.clone().text();
-        console.log("[DiscordSDK] /api/token raw response:", debugText);
-      } catch (e) {
-        console.warn("[DiscordSDK] Could not read /api/token response as text", e);
-      }
-
-      if (!response.ok) {
-        throw new Error(`Token fetch failed: ${response.status} ${response.statusText}\nRaw: ${debugText}`);
-      }
-
-      let access_token;
-      try {
-        const json = await response.json();
-        access_token = json.access_token;
-      } catch (err) {
-        throw new Error(
-          `Failed to parse /api/token response as JSON: ${err.message}\nRaw: ${debugText}`
-        );
-      }
-
-      auth = await discordSdk.commands.authenticate({ access_token });
-      if (!auth || !auth.user) throw new Error("Discord authentication failed");
-      user = auth.user;
-
-      // Get Discord context for session scoping
-      let context = {};
-      try {
-        context = await discordSdk.commands.getContext();
-      } catch (e) {
-        console.warn("Could not get Discord context, using default session.");
-      }
-      sessionId = context.channelId || context.activityInstanceId || "default-session";
-
-      renderAppWithUser({ ...user, sessionId });
-    } catch (err) {
-      console.error("[DiscordSDK] Discord authentication failed:", err);
-      root.render(
-        <div style={{ padding: 32, color: "red" }}>
-          Failed to authenticate with Discord.<br />
-          {err.message}
-        </div>
-      );
+      const context = await discordSdk.commands.getContext();
+      // Use channel ID for shared sessions, or activity instance for private sessions
+      sessionId = context.channelId || context.activityInstanceId || sessionId;
+      console.log("[Discord] Using sessionId from context:", sessionId);
+    } catch (e) {
+      console.warn("[Discord] Could not get context, using user-specific session:", sessionId);
     }
-  })();
-} else {
-  // Local dev mode
-  let user = null;
-  const params = new URLSearchParams(window.location.search);
-  const username = params.get("user");
-  if (username) {
-    user = { username, id: username };
-  } else {
-    // Only prompt ONCE, and only if not already set
-    if (!window.__phasmo_user_prompted) {
-      window.__phasmo_user_prompted = true;
-      const input = window.prompt("Enter a test username for this session:", "");
-      if (input) {
-        user = { username: input, id: input };
-      }
-    }
-  }
-  // Pass sessionId as part of user object for consistency
-  if (user) {
-    renderAppWithUser({ ...user, sessionId: "default-session" });
-  } else {
-    root.render(
-      <div style={{ padding: 32, color: "red" }}>
-        No username provided. Please reload and enter a username.
-      </div>
-    );
+    
+    console.log("[Discord] Authentication successful:", auth.user.username);
+    return { ...auth.user, sessionId };
+    
+  } catch (error) {
+    console.error("[Discord] Authentication failed:", error);
+    throw error;
   }
 }
+
+// ================================================
+// LOCAL DEVELOPMENT USER SETUP
+// ================================================
+
+/**
+ * Gets user credentials from URL parameters in development mode
+ * Note: SessionModal now handles session creation/joining
+ * @returns {Object|null} User object from URL params or null
+ */
+function getLocalUser() {
+  const params = new URLSearchParams(window.location.search);
+  const username = params.get("user");
+  const sessionCode = params.get("session");
+  
+  // Use URL parameters if provided (for testing/debugging)
+  if (username) {
+    console.log("[Local] Using username from URL:", username);
+    const sessionId = sessionCode || `user-${username}-${Date.now()}`;
+    console.log("[Local] Using sessionId:", sessionId);
+    return { username, id: username, sessionId };
+  }
+  
+  // Return null - SessionModal will handle session creation
+  return null;
+}
+
+// ================================================
+// APPLICATION INITIALIZATION
+// ================================================
+
+/**
+ * Main initialization function that sets up the session wrapper
+ */
+async function initializeApp() {
+  // Set up fetch patching for consistent API routing
+  setupFetchPatching();
+  
+  console.log("[Init] Starting session-based initialization");
+  
+  // Always start with the session wrapper now
+  renderSessionWrapper();
+}
+
+// ================================================
+// START APPLICATION
+// ================================================
+
+// Initialize the application
+initializeApp();
