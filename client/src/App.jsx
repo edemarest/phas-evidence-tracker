@@ -366,16 +366,18 @@ export default function App({ user }) {
             onCursedObjectToggle={handleCursedObjectToggle}
           />
 
-          <h2 className="section-title evidence-section-title">
-            <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
-            Evidence
-          </h2>
+          <div className="evidence-content-area">
+            <h2 className="section-title evidence-section-title">
+              <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
+              Evidence
+            </h2>
 
-          <Journal
-            evidenceState={effectiveState.evidenceState}
-            evidenceTypes={evidenceTypes}
-            onToggle={handleToggleEvidence}
-          />
+            <Journal
+              evidenceState={effectiveState.evidenceState}
+              evidenceTypes={evidenceTypes}
+              onToggle={handleToggleEvidence}
+            />
+          </div>
 
           <div className="status-bar">
             {/* Only show status and join code for browser sessions, not Discord */}
@@ -425,45 +427,46 @@ export default function App({ user }) {
             RIGHT PAGE - GHOSTS & ACTIVITY
             ================================================ */}
         <div className="journal-page right">
-
-          {/* Ghost section header with final ghost display */}
-          <div className="possible-ghosts-header-row">
-            <div className="possible-ghosts-title-row">
-              <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
-                <FaListAlt style={{ marginRight: 8, verticalAlign: "middle" }} />
-                Possible Ghosts
-              </h2>
-              <button
-                className="ghost-list-table-btn"
-                title="Show all ghosts table"
-                onClick={() => setShowGhostTable(true)}
-              >
-                <FaQuestionCircle />
-              </button>
+          <div className="possible-ghosts-content-area">
+            {/* Ghost section header with final ghost display */}
+            <div className="possible-ghosts-header-row">
+              <div className="possible-ghosts-title-row">
+                <h2 className="section-title possible-ghosts-title" style={{ marginBottom: 0 }}>
+                  <FaListAlt style={{ marginRight: 8, verticalAlign: "middle" }} />
+                  Possible Ghosts
+                </h2>
+                <button
+                  className="ghost-list-table-btn"
+                  title="Show all ghosts table"
+                  onClick={() => setShowGhostTable(true)}
+                >
+                  <FaQuestionCircle />
+                </button>
+              </div>
+              <div className="final-ghost-inline">
+                <span className="final-ghost-label-inline">Ghost:</span>
+                <span
+                  className={
+                    "final-ghost-value-inline" +
+                    (finalGhost === "?" ? " final-ghost-unknown" : "")
+                  }
+                >
+                  {finalGhost === "?" ? "???" : finalGhost}
+                </span>
+              </div>
             </div>
-            <div className="final-ghost-inline">
-              <span className="final-ghost-label-inline">Ghost:</span>
-              <span
-                className={
-                  "final-ghost-value-inline" +
-                  (finalGhost === "?" ? " final-ghost-unknown" : "")
-                }
-              >
-                {finalGhost === "?" ? "???" : finalGhost}
-              </span>
-            </div>
-          </div>
 
-          {/* Ghost list */}
-          <div className="possible-ghosts-list" style={{ marginBottom: "0" }}>
-            <GhostList
-              ghosts={ghosts}
-              possibleGhosts={possibleGhosts}
-              ghostStates={ghostStates}
-              onGhostToggle={handleGhostToggle}
-              evidenceState={effectiveState.evidenceState}
-              onShowTable={() => setShowGhostTable(true)}
-            />
+            {/* Ghost list */}
+            <div className="possible-ghosts-list" style={{ marginBottom: "0" }}>
+              <GhostList
+                ghosts={ghosts}
+                possibleGhosts={possibleGhosts}
+                ghostStates={ghostStates}
+                onGhostToggle={handleGhostToggle}
+                evidenceState={effectiveState.evidenceState}
+                onShowTable={() => setShowGhostTable(true)}
+              />
+            </div>
           </div>
 
           {/* Ghost table modal */}
