@@ -1,5 +1,5 @@
 /* ================================================
-   THEME VARIABLES & DESIGN TOKENS
+   CSS CUSTOM PROPERTIES & DESIGN TOKENS
    ================================================ */
 :root {
   /* Color Palette */
@@ -30,10 +30,10 @@
 }
 
 /* ================================================
-   GLOBAL STYLES & LAYOUT FOUNDATION
+   BASE STYLES & GLOBAL LAYOUT
    ================================================ */
 
-/* Base Body Styles */
+/* Document Body */
 body {
   background-color: #f5e1b9;
   font-family: var(--font-body);
@@ -41,15 +41,15 @@ body {
   margin: 0;
   min-height: 100vh;
   line-height: 1.5;
+  position: relative;
+  overflow-x: hidden;
+  width: 100vw;
   /* Paper-like grid background */
   background-image:
     repeating-linear-gradient(to bottom, #c2a77d33 0 1px, transparent 1px 32px),
     repeating-linear-gradient(to right, #c2a77d33 0 1px, transparent 1px 32px);
   background-size: 32px 32px;
   background-blend-mode: multiply;
-  position: relative;
-  overflow-x: hidden;
-  width: 100vw;
 }
 
 /* Video Background Overlay */
@@ -64,15 +64,15 @@ body::before {
   transition: background 0.2s;
 }
 
-/* App Container */
+/* Main App Container */
 #app {
   max-width: 1200px;
   margin: 0 auto;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: center; /* Center content vertically */
-  align-items: center; /* Center content horizontally */
+  justify-content: center;
+  align-items: center;
   position: relative;
   z-index: 1;
   padding: 0;
@@ -81,7 +81,7 @@ body::before {
 }
 
 /* ================================================
-   VIDEO BACKGROUND SYSTEM
+   BACKGROUND VIDEO SYSTEM
    ================================================ */
 
 #app-bg-video-wrapper {
@@ -98,13 +98,14 @@ body::before {
   object-fit: cover;
   filter: blur(12px) brightness(0.7);
   position: absolute;
-  top: 0; left: 0;
+  top: 0; 
+  left: 0;
   z-index: 0;
   pointer-events: none;
 }
 
 /* ================================================
-   JOURNAL BOOK LAYOUT
+   JOURNAL BOOK CONTAINER & LAYOUT
    ================================================ */
 
 /* Main Journal Container */
@@ -112,9 +113,9 @@ body::before {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   grid-template-areas: "left binding right";
-  height: min(750px, calc(100vh - 40px)); /* Use the smaller of 750px or viewport minus margins */
+  height: min(750px, calc(100vh - 40px));
   min-height: min(750px, calc(100vh - 40px));
-  max-height: min(750px, calc(100vh - 40px)); /* Cap at 750px or viewport minus margins */
+  max-height: min(750px, calc(100vh - 40px));
   background: var(--color-bg-paper);
   color: var(--color-text-primary);
   font-family: var(--font-body);
@@ -124,12 +125,12 @@ body::before {
   /* Book-like appearance */
   box-shadow: 0 8px 32px #0004, 0 1.5px 0 #bfa76a;
   border-radius: 18px;
-  margin: 0 auto; /* Remove fixed margins, let flexbox center it */
+  margin: 0 auto;
   max-width: 980px;
   padding: 0 16px;
   width: 100%;
   box-sizing: border-box;
-  overflow: hidden; /* Prevent content from spilling out */
+  overflow: hidden;
 }
 
 /* Book Binding Between Pages */
@@ -162,10 +163,10 @@ body::before {
   border-radius: 0;
   margin: 0;
   gap: var(--spacing-s);
-  height: 100%; /* Fill the container height */
-  min-height: 0; /* Allow shrinking */
-  max-height: 100%; /* Don't exceed container */
-  overflow: hidden; /* Prevent content from spilling */
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
   padding: 32px 28px 32px 28px;
   border: none;
   width: 100%;
@@ -181,14 +182,16 @@ body::before {
 }
 
 /* ================================================
-   TYPOGRAPHY & TEXT ELEMENTS
+   TYPOGRAPHY & TEXT STYLES
    ================================================ */
 
+/* Main Journal Title */
 .journal-title {
   margin: 0;
   font-family: var(--font-heading);
 }
 
+/* Team Display */
 .ghost-hunting-team {
   font-family: var(--font-log), cursive;
   font-size: 1.05rem;
@@ -199,6 +202,7 @@ body::before {
   word-break: break-word;
 }
 
+/* User Name Styling */
 .current-user {
   color: var(--color-accent-red);
   font-weight: bold;
@@ -208,87 +212,12 @@ body::before {
   color: var(--color-text-primary);
 }
 
-.status-bar {
-  margin-top: auto; /* This will push status bar to bottom */
-  font-size: 0.9em;
-  color: var(--color-text-secondary);
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  flex-shrink: 0; /* Don't shrink status bar */
-}
-
-/* Main content areas that should expand to fill available space */
-.evidence-content-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* Allow shrinking */
-  overflow: hidden;
-}
-
-.possible-ghosts-content-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* Allow shrinking */
-  overflow: hidden;
-}
-
-.possible-ghosts-list {
-  flex: 1; /* Take up remaining space */
-  min-height: 0; /* Allow shrinking */
-  overflow: hidden;
-}
-
-.session-code-book {
-  font-weight: bold;
-  color: #8B1538;
-  background: rgba(178, 34, 34, 0.08);
-  padding: 1px 6px;
-  border-radius: 3px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  font-size: 0.9em;
-  letter-spacing: 0.02em;
-}
-
-.session-code-copy-btn-book {
-  background: none;
-  border: none;
-  color: #8B1538;
-  padding: 1px 3px;
-  cursor: pointer;
-  transition: color 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9em;
-  margin-left: 3px;
-  border-radius: 2px;
-}
-
-.session-code-copy-btn-book:hover:not(:disabled) {
-  color: #B22222;
-}
-
-.session-code-copy-btn-book:disabled {
-  color: #28a745;
-  cursor: default;
-}
-
-/* Responsive adjustments for status bar */
-@media (max-width: 600px) {
-  .status-bar {
-    flex-wrap: wrap;
-  }
-}
-
+/* Section Titles */
 .evidence-section-title {
   margin-bottom: 0.1em;
   margin-top: 0.2em;
 }
 
-/* Section Titles */
 .possible-ghosts-title {
   display: flex;
   align-items: center;
@@ -318,10 +247,89 @@ body::before {
 }
 
 /* ================================================
+   LAYOUT CONTAINERS & CONTENT AREAS
+   ================================================ */
+
+/* Status Bar */
+.status-bar {
+  margin-top: auto;
+  font-size: 0.9em;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+/* Main Content Areas */
+.evidence-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.possible-ghosts-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.possible-ghosts-list {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ================================================
+   SESSION CONTROLS & JOIN CODE DISPLAY
+   ================================================ */
+
+/* Session Code Display */
+.session-code-book {
+  font-weight: bold;
+  color: #8B1538;
+  background: rgba(178, 34, 34, 0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-size: 0.9em;
+  letter-spacing: 0.02em;
+}
+
+/* Copy Button */
+.session-code-copy-btn-book {
+  background: none;
+  border: none;
+  color: #8B1538;
+  padding: 1px 3px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9em;
+  margin-left: 3px;
+  border-radius: 2px;
+}
+
+.session-code-copy-btn-book:hover:not(:disabled) {
+  color: #B22222;
+}
+
+.session-code-copy-btn-book:disabled {
+  color: #28a745;
+  cursor: default;
+}
+
+/* ================================================
    GHOST LIST COMPONENTS
    ================================================ */
 
-/* Ghost List Layout */
+/* Ghost List Header */
 .possible-ghosts-title-row {
   display: flex;
   align-items: center;
@@ -466,7 +474,10 @@ body::before {
 /* Reset Confirmation Modal */
 .reset-modal-backdrop {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0; 
+  left: 0; 
+  right: 0; 
+  bottom: 0;
   background: rgba(30,24,20,0.22);
   z-index: 2000;
   display: flex;
@@ -578,6 +589,10 @@ body::before {
   vertical-align: middle;
 }
 
+/* ================================================
+   ANIMATIONS
+   ================================================ */
+
 /* Discord Loading Animation */
 @keyframes spin {
   0% { transform: rotate(0deg); }
@@ -585,7 +600,7 @@ body::before {
 }
 
 /* ================================================
-   RESPONSIVE DESIGN - MOBILE OPTIMIZATIONS
+   RESPONSIVE DESIGN - MOBILE LAYOUT (< 900px)
    ================================================ */
 
 @media (max-width: 900px) {
@@ -597,7 +612,7 @@ body::before {
     margin: 0;
     padding: 0;
     min-height: 100vh;
-    height: auto !important; /* Allow content to determine height */
+    height: auto !important;
   }
   
   #app {
@@ -606,10 +621,10 @@ body::before {
     padding: 8px;
     margin: 0;
     min-height: 100vh;
-    height: auto !important; /* Allow content to determine height */
+    height: auto !important;
     box-sizing: border-box;
-    overflow: visible !important; /* Allow scrolling */
-    justify-content: flex-start !important; /* Start from top instead of center */
+    overflow: visible !important;
+    justify-content: flex-start !important;
   }
   
   /* Mobile Journal Layout */
@@ -621,14 +636,14 @@ body::before {
     gap: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
-    margin: 10px auto !important; /* Small margin for mobile */
+    margin: 10px auto !important;
     padding: 8px !important;
     border-radius: 12px !important;
-    min-height: calc(100vh - 20px) !important; /* Minimum height */
-    height: auto !important; /* Allow content to determine height */
-    max-height: none !important; /* Remove height restriction */
+    min-height: calc(100vh - 20px) !important;
+    height: auto !important;
+    max-height: none !important;
     box-sizing: border-box !important;
-    overflow: visible !important; /* Allow scrolling to see all content */
+    overflow: visible !important;
   }
   
   /* Mobile Binding (Horizontal Separator) */
@@ -683,6 +698,11 @@ body::before {
     font-size: 1.2rem !important;
     margin-bottom: 6px !important;
     margin-top: 6px !important;
+  }
+  
+  /* Mobile Status Bar */
+  .status-bar {
+    flex-wrap: wrap;
   }
   
   /* Mobile Activity Log */
@@ -759,7 +779,10 @@ body::before {
   }
 }
 
-/* Extra Small Mobile Devices */
+/* ================================================
+   RESPONSIVE DESIGN - EXTRA SMALL MOBILE (< 400px)
+   ================================================ */
+
 @media (max-width: 400px) {
   #app {
     padding: 4px !important;
