@@ -6,26 +6,9 @@ import GhostList from "./components/GhostList/GhostList.jsx";
 import ActivityLog from "./components/ActivityLog/ActivityLog.jsx";
 import SessionControls from "./components/SessionControls/SessionControls.jsx";
 import GhostTable from "./components/GhostTable/GhostTable.jsx";
-import { FaBookOpen, FaSkull, FaListAlt, FaSearch, FaQuestionCircle, FaRedoAlt, FaExclamationTriangle } from "react-icons/fa";
+import DiscordSessionManager from "../utils/DiscordSessionManager.js";
+import { FaBookOpen, FaSkull, FaListAlt, FaSearch, FaQuestionCircle, FaRedoAlt, FaExclamationTriangle, FaCopy } from "react-icons/fa";
 import "../style.css";
-
-// ================================================
-// UTILITY FUNCTIONS
-// ================================================
-
-function filterGhosts(evidenceState, ghosts) {
-  const circled = Object.entries(evidenceState)
-    .filter(([_, v]) => v === "circled")
-    .map(([k]) => k);
-  const crossed = Object.entries(evidenceState)
-    .filter(([_, v]) => v === "crossed")
-    .map(([k]) => k);
-  return ghosts.filter((ghost) => {
-    if (!circled.every((e) => ghost.evidences.includes(e))) return false;
-    if (crossed.some((e) => ghost.evidences.includes(e))) return false;
-    return true;
-  });
-}
 
 // ================================================
 // MOCK DATA FOR LOCAL DEVELOPMENT
@@ -35,6 +18,8 @@ const MOCK_STATE = {
   evidenceState: Object.fromEntries(evidenceTypes.map((e) => [e, "blank"])),
   boneFound: false,
   cursedObjectFound: false,
+  possibleGhosts: [],
+  finalGhost: null,
   log: [
     { user: { username: "misty" }, actionType: "evidence_update", evidence: "EMF Level 5", state: "circled" },
     { user: { username: "misty" }, actionType: "bone_update", found: true },
@@ -49,7 +34,7 @@ export default function App({ user }) {
   // ================================================
   // STATE MANAGEMENT
   // ================================================
-  
+
   const [state, setState] = useState(null);
   const [connected, setConnected] = useState(true);
   const [ghostStates, setGhostStates] = useState({});
@@ -57,7 +42,13 @@ export default function App({ user }) {
   const [wsError, setWsError] = useState(null);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
-  
+  const [sessionCodeCopied, setSessionCodeCopied] = useState(false);
+
+  // Discord session management
+  const [isDiscordEnvironment, setIsDiscordEnvironment] = useState(false);
+  const [discordManager, setDiscordManager] = useState(null);
+  const [discordSessionActive, setDiscordSessionActive] = useState(false);
+
   // Refs for polling client and audio elements
   const pollingRef = useRef(null);
   const circleAudio = useRef();
@@ -65,9 +56,59 @@ export default function App({ user }) {
   const chooseAudio = useRef();
 
   // ================================================
+  // DISCORD ENVIRONMENT DETECTION & INITIALIZATION
+  // ================================================
+
+  useEffect(() => {
+    const isDiscord = DiscordSessionManager.isDiscordEnvironment();
+    setIsDiscordEnvironment(isDiscord);
+    
+    if (isDiscord) {
+      console.log('[Discord] Discord environment detected - initializing auto-session');
+      initializeDiscordSession();
+    }
+  }, []);
+
+  const initializeDiscordSession = async () => {
+    try {
+      const manager = new DiscordSessionManager();
+      
+      // Initialize with Discord client ID (this would need to be configured)
+      const DISCORD_CLIENT_ID = process.env.REACT_APP_DISCORD_CLIENT_ID || 'your-discord-client-id';
+      
+      const sessionData = await manager.initialize(DISCORD_CLIENT_ID);
+      
+      setDiscordManager(manager);
+      setDiscordSessionActive(true);
+      
+      // Set up participant update handling
+      manager.onParticipantUpdate((participants, syncResult) => {
+        console.log('[Discord] Participant update:', participants.length, 'participants');
+        // The server state will be updated via polling, so we don't need to do anything special here
+      });
+      
+      console.log('[Discord] Auto-session initialized:', sessionData.sessionId);
+      
+      // Create a mock user object for the Discord session
+      const discordUser = {
+        username: sessionData.participants.find(p => p.isCurrentUser)?.username || 'Discord User',
+        sessionId: sessionData.sessionId,
+        isDiscordSession: true
+      };
+      
+      // Note: We would need to pass this user to the parent component
+      // For now, we'll rely on the normal polling to pick up the session
+      
+    } catch (error) {
+      console.error('[Discord] Failed to initialize Discord session:', error);
+      setIsDiscordEnvironment(false); // Fall back to manual session
+    }
+  };
+
+  // ================================================
   // CONNECTION & POLLING SETUP
   // ================================================
-  
+
   useEffect(() => {
     if (!user) return;
     let client = createPollingClient(user, (msg) => {
@@ -89,9 +130,48 @@ export default function App({ user }) {
   }, [user]);
 
   // ================================================
+  // WINDOW UNLOAD HANDLING
+  // ================================================
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handleBeforeUnload = async (event) => {
+      // Attempt to disconnect gracefully
+      if (pollingRef.current && pollingRef.current.disconnect) {
+        try {
+          await pollingRef.current.disconnect();
+        } catch (err) {
+          console.warn("[App] Failed to disconnect on page unload:", err);
+        }
+      }
+    };
+
+    const handleUnload = () => {
+      // Synchronous disconnect as backup
+      if (pollingRef.current && pollingRef.current.disconnect) {
+        navigator.sendBeacon && navigator.sendBeacon(`/api/session/disconnect`, JSON.stringify({
+          sessionId: user.sessionId || "default-session",
+          userId: user.id || user.username || "anonymous"
+        }));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+    };
+  }, [user]);
+
+  // ================================================
   // EVENT HANDLERS - EVIDENCE
   // ================================================
-  
+
   function handleToggleEvidence(evidence) {
     if (!state || !pollingRef.current) return;
     const current = state.evidenceState[evidence] || "blank";
@@ -99,14 +179,14 @@ export default function App({ user }) {
       current === "blank"
         ? "circled"
         : current === "circled"
-        ? "crossed"
-        : "blank";
-    
+          ? "crossed"
+          : "blank";
+
     // Play audio feedback
     if (next === "circled" && circleAudio.current) circleAudio.current.play();
     if (next === "crossed" && crossAudio.current) crossAudio.current.play();
     if (next === "blank" && chooseAudio.current) chooseAudio.current.play();
-    
+
     // Update local state for immediate UI feedback
     setState((prev) => ({
       ...prev,
@@ -115,7 +195,7 @@ export default function App({ user }) {
         [evidence]: next,
       },
     }));
-    
+
     // Send update to server
     pollingRef.current.sendMessage({
       type: "evidence_update",
@@ -128,7 +208,7 @@ export default function App({ user }) {
   // ================================================
   // EVENT HANDLERS - SESSION CONTROLS
   // ================================================
-  
+
   function handleBoneToggle(found) {
     if (!pollingRef.current) return;
     setState((prev) => ({
@@ -141,7 +221,7 @@ export default function App({ user }) {
       user,
     });
   }
-  
+
   function handleCursedObjectToggle(found) {
     if (!pollingRef.current) return;
     setState((prev) => ({
@@ -158,11 +238,11 @@ export default function App({ user }) {
   // ================================================
   // EVENT HANDLERS - GHOST SELECTION
   // ================================================
-  
+
   function handleGhostToggle(ghostName) {
     if (!pollingRef.current) return;
     const current = ghostStates[ghostName] || "none";
-    
+
     if (current === "none") {
       // Circle this ghost and uncircle all others
       if (circleAudio.current) circleAudio.current.play();
@@ -204,23 +284,9 @@ export default function App({ user }) {
   }
 
   // ================================================
-  // COMPUTED VALUES
-  // ================================================
-  
-  function getFinalGhost() {
-    // Prefer manually circled ghost over evidence logic
-    const circled = Object.entries(ghostStates).find(([_, v]) => v === "circled");
-    if (circled) return circled[0];
-    
-    // Fall back to evidence-based filtering
-    const possibleGhosts = filterGhosts(effectiveState.evidenceState, ghosts);
-    return possibleGhosts.length === 1 ? possibleGhosts[0].name : "?";
-  }
-
-  // ================================================
   // EVENT HANDLERS - RESET FUNCTIONALITY
   // ================================================
-  
+
   function handleResetInvestigation() {
     setShowResetModal(false);
     setResetting(true);
@@ -234,9 +300,43 @@ export default function App({ user }) {
   }
 
   // ================================================
+  // EVENT HANDLERS - SESSION CODE COPY
+  // ================================================
+
+  async function handleCopySessionCode() {
+    try {
+      const sessionCode = getSessionCodeFromUser(user);
+      if (sessionCode) {
+        await navigator.clipboard.writeText(sessionCode);
+        setSessionCodeCopied(true);
+        setTimeout(() => setSessionCodeCopied(false), 2000);
+      }
+    } catch (err) {
+      console.warn("Failed to copy session code to clipboard:", err);
+    }
+  }
+
+  // Helper function to extract session code from user object
+  function getSessionCodeFromUser(user) {
+    if (!user?.sessionId) return null;
+
+    // Extract code from different session ID formats
+    if (user.sessionId.startsWith('session-')) {
+      return user.sessionId.replace('session-', '');
+    }
+
+    // For Discord sessions or other formats, show a truncated version
+    if (user.sessionId.length > 8) {
+      return user.sessionId.substring(0, 8).toUpperCase();
+    }
+
+    return user.sessionId.toUpperCase();
+  }
+
+  // ================================================
   // RENDER LOGIC & ERROR HANDLING
   // ================================================
-  
+
   const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
   const effectiveState = state || (isLocal ? MOCK_STATE : null);
 
@@ -256,18 +356,28 @@ export default function App({ user }) {
   }
 
   // Computed values for render
-  const users = [{ username: user.username }];
-  const possibleGhosts = filterGhosts(effectiveState.evidenceState, ghosts);
-  const finalGhost = getFinalGhost();
+  const activeUsers = effectiveState.activeUsers || [];
+  const participants = effectiveState.participants || [];
+  
+  // Use participants if available (Discord sessions), otherwise fall back to activeUsers
+  const users = participants.length > 0 
+    ? participants
+    : activeUsers.length > 0 
+      ? activeUsers.map(userId => ({ username: userId }))
+      : [{ username: user.username }]; // Fallback to current user if no data
+  
+  // Use server-computed values (possibleGhosts and finalGhost come from server)
+  const possibleGhosts = effectiveState.possibleGhosts || [];
+  const finalGhost = effectiveState.finalGhost || "?";
 
   // ================================================
   // MAIN RENDER
   // ================================================
-  
+
   return (
     <>
       <div className="journal-app-main">
-        
+
         {/* ================================================
             LEFT PAGE - EVIDENCE & CONTROLS
             ================================================ */}
@@ -282,9 +392,27 @@ export default function App({ user }) {
               <FaSkull style={{ marginRight: 4, verticalAlign: "middle" }} />
               Ghost Hunting Team:
             </b>{" "}
-            {users.map((u) => u.username).join(", ")}
+            {users.map((u, index) => {
+              const isCurrentUser = u.username === user.username;
+              console.log(`[App] User ${u.username} === ${user.username}? ${isCurrentUser}`);
+              
+              return (
+                <span key={u.username || index}>
+                  {index > 0 && ", "}
+                  <span 
+                    className={isCurrentUser ? "current-user" : "other-user"}
+                    style={{
+                      color: isCurrentUser ? "#B22222" : "inherit",
+                      fontWeight: isCurrentUser ? "bold" : "normal"
+                    }}
+                  >
+                    {u.username}
+                  </span>
+                </span>
+              );
+            })}
           </div>
-          
+
           <SessionControls
             users={users}
             boneFound={effectiveState.boneFound}
@@ -292,22 +420,38 @@ export default function App({ user }) {
             onBoneToggle={handleBoneToggle}
             onCursedObjectToggle={handleCursedObjectToggle}
           />
-          
+
           <h2 className="section-title evidence-section-title">
             <FaSearch style={{ marginRight: 8, verticalAlign: "middle" }} />
             Evidence
           </h2>
-          
+
           <Journal
             evidenceState={effectiveState.evidenceState}
             evidenceTypes={evidenceTypes}
             onToggle={handleToggleEvidence}
           />
-          
+
           <div className="status-bar">
             Status: {connected ? "Connected" : "Disconnected"}
+            {getSessionCodeFromUser(user) && (
+              <>
+                {" • Join Code: "}
+                <span className="session-code-book">
+                  {getSessionCodeFromUser(user)}
+                </span>
+                <button
+                  className="session-code-copy-btn-book"
+                  onClick={handleCopySessionCode}
+                  title={sessionCodeCopied ? "Copied!" : "Copy join code"}
+                  disabled={sessionCodeCopied}
+                >
+                  <FaCopy />
+                </button>
+              </>
+            )}
           </div>
-          
+
           {/* Mobile-only reset button */}
           <div className="mobile-reset-btn-container">
             <button
@@ -321,17 +465,17 @@ export default function App({ user }) {
             </button>
           </div>
         </div>
-        
+
         {/* ================================================
             BOOK BINDING
             ================================================ */}
         <div className="journal-binding" />
-        
+
         {/* ================================================
             RIGHT PAGE - GHOSTS & ACTIVITY
             ================================================ */}
         <div className="journal-page right">
-          
+
           {/* Ghost section header with final ghost display */}
           <div className="possible-ghosts-header-row">
             <div className="possible-ghosts-title-row">
@@ -359,7 +503,7 @@ export default function App({ user }) {
               </span>
             </div>
           </div>
-          
+
           {/* Ghost list */}
           <div className="possible-ghosts-list" style={{ marginBottom: "0" }}>
             <GhostList
@@ -371,12 +515,12 @@ export default function App({ user }) {
               onShowTable={() => setShowGhostTable(true)}
             />
           </div>
-          
+
           {/* Ghost table modal */}
           {showGhostTable && (
             <GhostTable ghosts={ghosts} onClose={() => setShowGhostTable(false)} />
           )}
-          
+
           {/* Activity log section */}
           <h2 className="section-title activity-log-title-main">
             <FaBookOpen style={{ marginRight: 8, verticalAlign: "middle" }} />
@@ -385,7 +529,7 @@ export default function App({ user }) {
           <div className="activity-log-wrapper">
             <ActivityLog log={effectiveState.log || []} />
           </div>
-          
+
           {/* Desktop-only reset button */}
           <div className="desktop-reset-btn-container" style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
             <button
@@ -432,7 +576,7 @@ export default function App({ user }) {
             </div>
           </div>
         )}
-        
+
         {/* ================================================
             RESPONSIVE STYLES
             ================================================ */}
@@ -465,7 +609,7 @@ export default function App({ user }) {
           `}
         </style>
       </div>
-      
+
       {/* ================================================
           AUDIO ELEMENTS FOR SOUND EFFECTS
           ================================================ */}

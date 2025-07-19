@@ -54,7 +54,8 @@ export function createPollingClient(user, onMessage) {
     
     try {
       const sessionId = user.sessionId || "default-session";
-      const res = await fetch(`${apiBase}/book/state?sessionId=${encodeURIComponent(sessionId)}`);
+      const userId = user.id || user.username || "anonymous";
+      const res = await fetch(`${apiBase}/book/state?sessionId=${encodeURIComponent(sessionId)}&userId=${encodeURIComponent(userId)}`);
       if (res.ok) {
         const state = await res.json();
         // Only notify if state has changed
@@ -116,11 +117,44 @@ export function createPollingClient(user, onMessage) {
     },
 
     /**
-     * Stops the polling client
+     * Stops the polling client and notifies server of disconnect
      */
-    close: () => { 
+    close: async () => { 
       stopped = true; 
-      console.log("[Client] Polling client stopped");
+      console.log("[Client] Polling client stopping, notifying server...");
+      
+      // Notify server that user is disconnecting
+      try {
+        const sessionId = user.sessionId || "default-session";
+        const userId = user.id || user.username || "anonymous";
+        await fetch(`${apiBase}/session/disconnect`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, userId }),
+        });
+        console.log("[Client] Successfully notified server of disconnect");
+      } catch (err) {
+        console.warn("[Client] Failed to notify server of disconnect:", err);
+      }
+    },
+
+    /**
+     * Explicitly disconnect from session (for manual logout)
+     */
+    disconnect: async () => {
+      const sessionId = user.sessionId || "default-session";
+      const userId = user.id || user.username || "anonymous";
+      
+      try {
+        await fetch(`${apiBase}/session/disconnect`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, userId }),
+        });
+        console.log("[Client] Successfully disconnected from session");
+      } catch (err) {
+        console.error("[Client] Failed to disconnect from session:", err);
+      }
     }
   };
 }
