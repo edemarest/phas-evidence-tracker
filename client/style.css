@@ -257,8 +257,18 @@ body::before {
   color: var(--color-text-secondary);
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
-  flex-shrink: 0;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Connection status indicators */
+.status-bar .connection-status {
+  font-weight: bold;
+}
+
+.status-bar .connection-error {
+  font-style: italic;
+  opacity: 0.9;
 }
 
 /* Main Content Areas */

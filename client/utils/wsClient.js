@@ -35,6 +35,7 @@ function getApiBase() {
 /**
  * Creates a polling-based client for real-time communication
  * Uses HTTP polling instead of WebSockets for better compatibility
+ * Enhanced with reconnection handling for free tier servers
  * 
  * @param {Object} user - User object with username and id
  * @param {Function} onMessage - Callback for received messages
@@ -43,11 +44,15 @@ function getApiBase() {
 export function createPollingClient(user, onMessage) {
   let stopped = false;
   let lastState = null;
+  let consecutiveErrors = 0;
+  let isConnected = true;
+  let pollInterval = 2000; // Start with 2 second polling
+  const maxInterval = 10000; // Max 10 second interval during errors
   const apiBase = getApiBase();
 
   /**
-   * Polls the server for state changes every 2 seconds
-   * Only triggers onMessage when state actually changes
+   * Polls the server for state changes with exponential backoff on errors
+   * Handles server sleep/wake cycles gracefully
    */
   async function poll() {
     if (stopped) return;
@@ -55,23 +60,47 @@ export function createPollingClient(user, onMessage) {
     try {
       const sessionId = user.sessionId || "default-session";
       const userId = user.id || user.username || "anonymous";
-      const res = await fetch(`${apiBase}/book/state?sessionId=${encodeURIComponent(sessionId)}&userId=${encodeURIComponent(userId)}`);
+      const res = await fetch(`${apiBase}/book/state?sessionId=${encodeURIComponent(sessionId)}&userId=${encodeURIComponent(userId)}`, {
+        timeout: 8000 // 8 second timeout
+      });
+      
       if (res.ok) {
         const state = await res.json();
+        
+        // Connection restored
+        if (!isConnected) {
+          console.log("[Polling] Connection restored!");
+          onMessage && onMessage({ type: "connection_restored" });
+          isConnected = true;
+          consecutiveErrors = 0;
+          pollInterval = 2000; // Reset to normal polling
+        }
+        
         // Only notify if state has changed
         if (JSON.stringify(state) !== JSON.stringify(lastState)) {
           onMessage && onMessage({ type: "sync_state", state });
           lastState = state;
         }
       } else {
-        console.warn("[Polling] Failed to fetch book state:", res.status, apiBase);
+        throw new Error(`HTTP ${res.status}`);
       }
     } catch (err) {
-      console.error("[Polling] Error fetching book state:", err, apiBase);
+      consecutiveErrors++;
+      
+      // Connection lost notification (only on first error)
+      if (isConnected) {
+        console.warn("[Polling] Connection lost, attempting to reconnect...", err.message);
+        onMessage && onMessage({ type: "connection_lost" });
+        isConnected = false;
+      }
+      
+      // Exponential backoff for errors (server might be sleeping)
+      pollInterval = Math.min(1000 * Math.pow(2, consecutiveErrors), maxInterval);
+      console.warn(`[Polling] Error (attempt ${consecutiveErrors}), retrying in ${pollInterval/1000}s:`, err.message);
     }
     
-    // Schedule next poll
-    setTimeout(poll, 2000);
+    // Schedule next poll with current interval
+    setTimeout(poll, pollInterval);
   }
   
   // Start polling immediately
@@ -83,19 +112,41 @@ export function createPollingClient(user, onMessage) {
 
   return {
     /**
-     * Sends an action message to the server
+     * Sends an action message to the server with retry logic
      * @param {Object} msg - Action message to send
      */
     sendMessage: async (msg) => {
-      try {
-        const sessionId = user.sessionId || "default-session";
-        await fetch(`${apiBase}/book/action`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...msg, user, sessionId }),
-        });
-      } catch (err) {
-        console.error("[Client] Failed to send message:", err);
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          const sessionId = user.sessionId || "default-session";
+          const response = await fetch(`${apiBase}/book/action`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...msg, user, sessionId }),
+            timeout: 8000
+          });
+          
+          if (response.ok) {
+            return; // Success
+          } else if (response.status >= 500) {
+            // Server error, retry
+            throw new Error(`Server error: ${response.status}`);
+          } else {
+            // Client error, don't retry
+            console.error("[Client] Client error sending message:", response.status);
+            return;
+          }
+        } catch (err) {
+          retries--;
+          if (retries > 0) {
+            console.warn(`[Client] Failed to send message, retrying... (${retries} left)`, err.message);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+          } else {
+            console.error("[Client] Failed to send message after all retries:", err.message);
+            onMessage && onMessage({ type: "send_failed", error: err.message });
+          }
+        }
       }
     },
 
@@ -158,3 +209,6 @@ export function createPollingClient(user, onMessage) {
     }
   };
 }
+
+// Export as createWSClient for backwards compatibility
+export const createWSClient = createPollingClient;

@@ -2,6 +2,17 @@ import React, { useState } from "react";
 import { FaPlus, FaSignInAlt, FaSpinner, FaExclamationTriangle, FaCopy, FaCheck } from "react-icons/fa";
 import "./SessionModal.css";
 
+// Utility function to get the correct API base URL
+function getApiBase() {
+  if (window.location.search.includes("frame_id") || window.location.hostname.endsWith("discordsays.com")) {
+    return "/.proxy/api";
+  }
+  if (import.meta.env.MODE === "production") {
+    return "https://phas-evidence-backend.onrender.com/api";
+  }
+  return "/api";
+}
+
 export default function SessionModal({ onSessionStart, onError }) {
   const [mode, setMode] = useState(null); // null, 'new', 'join'
   const [joinCode, setJoinCode] = useState("");
@@ -38,18 +49,36 @@ export default function SessionModal({ onSessionStart, onError }) {
     try {
       console.log("[SessionModal] Creating new session...");
       
+      const apiBase = getApiBase();
+      console.log("[SessionModal] Using API base:", apiBase);
+      
       // Create a new session on the server
-      const response = await fetch("/api/session/create", {
+      const response = await fetch(`${apiBase}/session/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
 
+      console.log("[SessionModal] Response status:", response.status);
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create session");
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (jsonErr) {
+          console.warn("[SessionModal] Could not parse error response as JSON");
+        }
+        throw new Error(errorMessage);
       }
 
-      const { sessionCode, sessionId } = await response.json();
+      const responseText = await response.text();
+      console.log("[SessionModal] Response text:", responseText);
+      
+      if (!responseText) {
+        throw new Error("Empty response from server");
+      }
+      
+      const { sessionCode, sessionId } = JSON.parse(responseText);
       setNewSessionCode(sessionCode);
       
       console.log("[SessionModal] Created new session:", sessionCode);
@@ -76,20 +105,35 @@ export default function SessionModal({ onSessionStart, onError }) {
       const code = joinCode.trim().toUpperCase();
       console.log("[SessionModal] Attempting to join session:", code);
 
+      const apiBase = getApiBase();
+
       // Join the session on the server
-      const response = await fetch("/api/session/join", {
+      const response = await fetch(`${apiBase}/session/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionCode: code })
       });
 
+      console.log("[SessionModal] Join response status:", response.status);
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Invalid session code");
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (jsonErr) {
+          console.warn("[SessionModal] Could not parse join error response as JSON");
+        }
+        throw new Error(errorMessage);
+      }
+
+      const responseText = await response.text();
+      if (!responseText) {
+        throw new Error("Empty response from server");
       }
 
       // Session is valid, proceed with this code
-      const { sessionId } = await response.json();
+      const { sessionId } = JSON.parse(responseText);
       console.log("[SessionModal] Successfully joined session:", code);
       
       onSessionStart({

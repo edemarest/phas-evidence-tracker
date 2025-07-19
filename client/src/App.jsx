@@ -43,6 +43,7 @@ export default function App({ user }) {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [sessionCodeCopied, setSessionCodeCopied] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState("connected"); // "connected", "reconnecting", "disconnected"
 
   // Refs for polling client and audio elements
   const pollingRef = useRef(null);
@@ -60,10 +61,20 @@ export default function App({ user }) {
       if (msg.type === "sync_state") {
         setState(msg.state);
         setGhostStates(msg.state.ghostStates || {});
+      } else if (msg.type === "connection_lost") {
+        setConnectionStatus("reconnecting");
+        setWsError("Reconnecting to server...");
+      } else if (msg.type === "connection_restored") {
+        setConnectionStatus("connected");
+        setWsError(null);
+      } else if (msg.type === "send_failed") {
+        setWsError("Failed to save changes. Will retry automatically.");
+        setTimeout(() => setWsError(null), 5000); // Clear error after 5 seconds
       }
     });
     pollingRef.current = client;
     setConnected(true);
+    setConnectionStatus("connected");
     setWsError(null);
     return () => {
       if (pollingRef.current) {
@@ -71,6 +82,7 @@ export default function App({ user }) {
         pollingRef.current = null;
       }
       setConnected(false);
+      setConnectionStatus("disconnected");
     };
   }, [user]);
 
@@ -383,7 +395,20 @@ export default function App({ user }) {
             {/* Only show status and join code for browser sessions, not Discord */}
             {!user?.isDiscordSession && (
               <>
-                Status: {connected ? "Connected" : "Disconnected"}
+                Status: 
+                <span style={{
+                  color: connectionStatus === "connected" ? "#28a745" : 
+                         connectionStatus === "reconnecting" ? "#ffc107" : "#dc3545",
+                  fontWeight: "bold"
+                }}>
+                  {connectionStatus === "connected" ? "Connected" : 
+                   connectionStatus === "reconnecting" ? "Reconnecting..." : "Disconnected"}
+                </span>
+                {wsError && (
+                  <span style={{ color: "#ffc107", marginLeft: "8px" }}>
+                    ({wsError})
+                  </span>
+                )}
                 {getSessionCodeFromUser(user) && (
                   <>
                     {" • Join Code: "}
