@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
+import cors from "cors"; // <-- Add this import
 import { ghosts, evidenceTypes } from "./ghostData.js";
 
 // ================================================
@@ -20,6 +21,12 @@ const port = process.env.PORT || 3001;
 
 // Parse JSON request bodies
 app.use(express.json());
+
+// Add CORS middleware before all routes
+app.use(cors({
+  origin: "https://phas-evidence-tracker.onrender.com", // Allow your frontend domain
+  credentials: true, // If you use cookies/auth
+}));
 
 // Debug logging for API routes only
 app.use((req, res, next) => {
