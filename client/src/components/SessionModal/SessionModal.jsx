@@ -4,18 +4,15 @@ import "./SessionModal.css";
 
 // Utility function to get the correct API base URL
 function getApiBase() {
-  // Use env variable if present
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  // Always use full backend URL in production
   if (
     import.meta.env.MODE === "production" ||
     window.location.hostname.endsWith("onrender.com")
   ) {
     return "https://phas-evidence-backend.onrender.com/api";
   }
-  // Discord Activity special case
   if (window.location.search.includes("frame_id") || window.location.hostname.endsWith("discordsays.com")) {
     return "/.proxy/api";
   }
@@ -57,8 +54,6 @@ export default function SessionModal({ onSessionStart, onError }) {
     
     try {
       const apiBase = getApiBase();
-      
-      // Create a new session on the server
       const response = await fetch(`${apiBase}/session/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" }
@@ -69,8 +64,7 @@ export default function SessionModal({ onSessionStart, onError }) {
         try {
           const error = await response.json();
           errorMessage = error.error || errorMessage;
-        } catch (jsonErr) {
-        }
+        } catch (jsonErr) {}
         throw new Error(errorMessage);
       }
 
@@ -78,15 +72,14 @@ export default function SessionModal({ onSessionStart, onError }) {
       try {
         data = await response.json();
       } catch (err) {
-        const rawText = await response.text();
+        await response.text();
         throw new Error("Server returned invalid JSON");
       }
       
       const { sessionCode, sessionId } = data;
       setNewSessionCode(sessionCode);
-      
       setMode("new-created");
-      setLoading(false); // Important: reset loading state
+      setLoading(false);
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -107,7 +100,6 @@ export default function SessionModal({ onSessionStart, onError }) {
       const code = joinCode.trim().toUpperCase();
       const apiBase = getApiBase();
 
-      // Join the session on the server
       const response = await fetch(`${apiBase}/session/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,8 +111,7 @@ export default function SessionModal({ onSessionStart, onError }) {
         try {
           const error = await response.json();
           errorMessage = error.error || errorMessage;
-        } catch (jsonErr) {
-        }
+        } catch (jsonErr) {}
         throw new Error(errorMessage);
       }
 
@@ -128,16 +119,15 @@ export default function SessionModal({ onSessionStart, onError }) {
       try {
         data = await response.json();
       } catch (err) {
-        const rawText = await response.text();
+        await response.text();
         throw new Error("Server returned invalid JSON");
       }
 
-      // Session is valid, proceed with this code
       const { sessionId } = data;
       onSessionStart({
         sessionId,
         isNewSession: false,
-        username: null // Will be determined by parent component
+        username: null
       });
     } catch (err) {
       setError(err.message);
@@ -151,7 +141,7 @@ export default function SessionModal({ onSessionStart, onError }) {
     onSessionStart({
       sessionId,
       isNewSession: true,
-      username: null // Will be determined by parent component
+      username: null
     });
   }
 
@@ -161,8 +151,7 @@ export default function SessionModal({ onSessionStart, onError }) {
       await navigator.clipboard.writeText(newSessionCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-    }
+    } catch (err) {}
   }
 
   // Handle Enter key press in join code input
@@ -292,31 +281,6 @@ export default function SessionModal({ onSessionStart, onError }) {
               
               <p className="session-code-instructions">
                 Share this code with your team so they can join your investigation.
-                You can continue now and they can join anytime.
-              </p>
-
-              <div className="session-modal-actions">
-                <button
-                  className="session-modal-btn secondary"
-                  onClick={handleBack}
-                >
-                  Back
-                </button>
-                <button
-                  className="session-modal-btn primary"
-                  onClick={handleContinueWithNew}
-                >
-                  <FaPlus />
-                  Start Investigation
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
                 You can continue now and they can join anytime.
               </p>
 
