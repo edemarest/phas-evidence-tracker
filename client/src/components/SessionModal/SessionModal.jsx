@@ -7,7 +7,8 @@ function getApiBase() {
   if (window.location.search.includes("frame_id") || window.location.hostname.endsWith("discordsays.com")) {
     return "/.proxy/api";
   }
-  if (import.meta.env.MODE === "production") {
+  // Always use full backend URL in production
+  if (import.meta.env.MODE === "production" || window.location.hostname.endsWith("onrender.com")) {
     return "https://phas-evidence-backend.onrender.com/api";
   }
   return "/api";
