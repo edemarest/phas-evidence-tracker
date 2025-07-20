@@ -879,8 +879,3 @@ app.listen(port, "0.0.0.0", () => {
   console.info(`[Server] Session cleanup interval: 1 hour`);
   console.info(`[Server] Session max age: 24 hours`);
 });
-  // Log session management info
-  console.log(`[Server] Session management enabled`);
-  console.log(`[Server] Session cleanup interval: 1 hour`);
-  console.log(`[Server] Session max age: 24 hours`);
-});

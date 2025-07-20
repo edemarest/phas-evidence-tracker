@@ -13,8 +13,8 @@ app.post('/api/session', async (req, res) => {
         }
         // ...existing code...
         // On success
-        console.log('[DEBUG] Session created successfully:', { sessionId: /* sessionId */ });
-        res.json({ sessionId: /* sessionId */ });
+        console.info('[DEBUG] Session created successfully:', { sessionId: req.cookies.sessionId });
+        res.json({ sessionId: req.cookies.sessionId });
     } catch (err) {
         console.error('[ERROR] Session creation failed:', err);
         // Log response status and body

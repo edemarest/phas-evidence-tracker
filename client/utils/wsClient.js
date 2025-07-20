@@ -205,20 +205,3 @@ export function createPollingClient(user, onMessage) {
 
 // Export as createWSClient for backwards compatibility
 export const createWSClient = createPollingClient;
-      
-      try {
-        await fetch(`${apiBase}/session/disconnect`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, userId }),
-        });
-        console.log("[Client] Successfully disconnected from session");
-      } catch (err) {
-        console.error("[Client] Failed to disconnect from session:", err);
-      }
-    }
-  };
-}
-
-// Export as createWSClient for backwards compatibility
-export const createWSClient = createPollingClient;
