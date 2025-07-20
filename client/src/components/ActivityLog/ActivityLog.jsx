@@ -117,15 +117,15 @@ export default function ActivityLog({ log }) {
     <div className="activity-log-outer">
       <div className="activity-log-scroll" ref={scrollRef}>
         <ul className="activity-log">
-          {(log || [])
-            .slice(-visibleCount)
-            .reverse()
-            .map((entry, i) => (
-              <li key={i}>
-                <span className="log-icon-wrapper">{getLogIcon(entry)}</span>
-                <span className="log-text">{formatLogEntry(entry)}</span>
-              </li>
-            ))}
+                    {(log || [])
+                        .slice(-Math.max(1, visibleCount))
+                        .reverse()
+                        .map((entry, i) => (
+                            <li key={i}>
+                                <span className="log-icon-wrapper">{getLogIcon(entry)}</span>
+                                <span className="log-text">{formatLogEntry(entry)}</span>
+                            </li>
+                        ))}
         </ul>
         <button
           className={`activity-log-scroll-top-btn${showTopBtn ? " visible" : ""}`}

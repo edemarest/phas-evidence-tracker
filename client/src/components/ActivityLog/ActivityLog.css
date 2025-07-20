@@ -1,4 +1,9 @@
 /* Add ActivityLog-specific styles here */
+/* Font variables for ActivityLog */
+:root {
+  --font-heading: 'Nunito', 'Roboto', Arial, sans-serif;
+  --font-log: 'Roboto', 'Nunito', Arial, sans-serif;
+}
 
 .activity-log-wrapper {
   /* Make parent slightly taller and non-scrollable */
