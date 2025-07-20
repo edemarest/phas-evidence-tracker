@@ -475,23 +475,3 @@ initializeApp();
 // ================================================
 // APPLICATION INITIALIZATION
 // ================================================
-
-/**
- * Main initialization function that sets up the session wrapper
- */
-async function initializeApp() {
-  // Set up fetch patching for consistent API routing
-  setupFetchPatching();
-  
-  console.log("[Init] Starting session-based initialization");
-  
-  // Always start with the session wrapper now
-  renderSessionWrapper();
-}
-
-// ================================================
-// START APPLICATION
-// ================================================
-
-// Initialize the application
-initializeApp();
