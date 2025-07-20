@@ -30,11 +30,12 @@ app.use(cors({
 
 // Debug logging for API routes only
 app.use((req, res, next) => {
-  if (req.originalUrl.includes("/api/")) {
-    console.debug(`[API] ${req.method} ${req.originalUrl}`);
-    console.debug(`[API] Headers:`, req.headers);
+  // Only log important API requests (session create/join, errors)
+  if (req.originalUrl.includes("/api/session/create") || req.originalUrl.includes("/api/session/join")) {
+    console.info(`[API] ${req.method} ${req.originalUrl}`);
+    console.info(`[API] Headers:`, req.headers);
     if (req.method === "POST") {
-      console.debug(`[API] Body:`, req.body);
+      console.info(`[API] Body:`, req.body);
     }
   }
   next();
@@ -271,7 +272,7 @@ function cleanupOldSessions() {
   }
   
   if (cleanedCount > 0) {
-    console.log(`[Cleanup] Removed ${cleanedCount} old sessions`);
+    console.info(`[Cleanup] Removed ${cleanedCount} old sessions`);
   }
 }
 
@@ -458,20 +459,18 @@ apiRouter.post("/sessions/discord-sync-participants", (req, res) => {
 
 // Generate a new session code
 apiRouter.post("/session/create", (req, res) => {
-  console.log(`[Session] [CREATE] Received POST /session/create`);
-  console.log(`[Session] [CREATE] Headers:`, req.headers);
-  console.log(`[Session] [CREATE] Body:`, req.body);
+  console.info(`[Session] [CREATE] Received POST /session/create`);
   try {
     // Generate a unique 6-character session code
     const sessionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const sessionId = `session-${sessionCode}`;
     
-    console.log(`[Session] [CREATE] Creating new session with code: ${sessionCode}`);
+    console.info(`[Session] [CREATE] Creating new session with code: ${sessionCode}`);
     
     // Initialize the session state
     getSessionState(sessionId);
     
-    console.log(`[Session] [CREATE] Responding with:`, { sessionCode, sessionId });
+    console.info(`[Session] [CREATE] Responding with:`, { sessionCode, sessionId });
     res.json({ 
       sessionCode,
       sessionId 
@@ -487,9 +486,7 @@ apiRouter.post("/session/create", (req, res) => {
 
 // Validate and join an existing session
 apiRouter.post("/session/join", (req, res) => {
-  console.log(`[Session] [JOIN] Received POST /session/join`);
-  console.log(`[Session] [JOIN] Headers:`, req.headers);
-  console.log(`[Session] [JOIN] Body:`, req.body);
+  console.info(`[Session] [JOIN] Received POST /session/join`);
   try {
     const { sessionCode } = req.body;
     
@@ -515,7 +512,7 @@ apiRouter.post("/session/join", (req, res) => {
     
     console.log(`[Session] [JOIN] User joining existing session: ${sessionCode}`);
     
-    console.log(`[Session] [JOIN] Responding with:`, { sessionCode, sessionId });
+    console.info(`[Session] [JOIN] Responding with:`, { sessionCode, sessionId });
     res.json({ 
       sessionCode,
       sessionId,
@@ -829,8 +826,8 @@ function cleanupInactiveSessions() {
   });
   
   if (cleanedCount > 0) {
-    console.log(`[Cleanup] Removed ${cleanedCount} sessions (${emptySessionsCount} empty, ${cleanedCount - emptySessionsCount} inactive)`);
-    console.log(`[Cleanup] Active sessions remaining: ${Object.keys(sessionStates).length}`);
+    console.info(`[Cleanup] Removed ${cleanedCount} sessions (${emptySessionsCount} empty, ${cleanedCount - emptySessionsCount} inactive)`);
+    console.info(`[Cleanup] Active sessions remaining: ${Object.keys(sessionStates).length}`);
   }
 }
 
@@ -865,7 +862,7 @@ function cleanupStaleUsers() {
   });
   
   if (staleUsersCount > 0) {
-    console.log(`[Cleanup] Removed ${staleUsersCount} stale user connections`);
+    console.info(`[Cleanup] Removed ${staleUsersCount} stale user connections`);
   }
 }
 
@@ -876,9 +873,12 @@ setInterval(cleanupStaleUsers, 30 * 60 * 1000);
 // ================================================
 
 app.listen(port, "0.0.0.0", () => {
-  console.log(`[Server] Phasmophobia Evidence Tracker API running on http://0.0.0.0:${port}`);
-  console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
-  
+  console.info(`[Server] Phasmophobia Evidence Tracker API running on http://0.0.0.0:${port}`);
+  console.info(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.info(`[Server] Session management enabled`);
+  console.info(`[Server] Session cleanup interval: 1 hour`);
+  console.info(`[Server] Session max age: 24 hours`);
+});
   // Log session management info
   console.log(`[Server] Session management enabled`);
   console.log(`[Server] Session cleanup interval: 1 hour`);

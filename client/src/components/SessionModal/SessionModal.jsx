@@ -6,7 +6,6 @@ import "./SessionModal.css";
 function getApiBase() {
   // Use env variable if present
   if (import.meta.env.VITE_API_BASE_URL) {
-    console.log("[SessionModal] VITE_API_BASE_URL is set to:", import.meta.env.VITE_API_BASE_URL);
     return import.meta.env.VITE_API_BASE_URL;
   }
   // Always use full backend URL in production
@@ -14,15 +13,12 @@ function getApiBase() {
     import.meta.env.MODE === "production" ||
     window.location.hostname.endsWith("onrender.com")
   ) {
-    console.log("[SessionModal] Using hardcoded backend URL for production:", "https://phas-evidence-backend.onrender.com/api");
     return "https://phas-evidence-backend.onrender.com/api";
   }
   // Discord Activity special case
   if (window.location.search.includes("frame_id") || window.location.hostname.endsWith("discordsays.com")) {
-    console.log("[SessionModal] Using Discord proxy API");
     return "/.proxy/api";
   }
-  console.log("[SessionModal] Using local /api for dev");
   return "/api";
 }
 
@@ -60,10 +56,7 @@ export default function SessionModal({ onSessionStart, onError }) {
     setError("");
     
     try {
-      console.log("[SessionModal] Creating new session...");
-      
       const apiBase = getApiBase();
-      console.log("[SessionModal] Using API base:", apiBase);
       
       // Create a new session on the server
       const response = await fetch(`${apiBase}/session/create`, {
@@ -71,15 +64,12 @@ export default function SessionModal({ onSessionStart, onError }) {
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log("[SessionModal] Response status:", response.status);
-      
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`;
         try {
           const error = await response.json();
           errorMessage = error.error || errorMessage;
         } catch (jsonErr) {
-          console.warn("[SessionModal] Could not parse error response as JSON");
         }
         throw new Error(errorMessage);
       }
@@ -89,18 +79,15 @@ export default function SessionModal({ onSessionStart, onError }) {
         data = await response.json();
       } catch (err) {
         const rawText = await response.text();
-        console.error("[SessionModal] Response not valid JSON. Raw response:", rawText);
         throw new Error("Server returned invalid JSON");
       }
       
       const { sessionCode, sessionId } = data;
       setNewSessionCode(sessionCode);
       
-      console.log("[SessionModal] Created new session:", sessionCode);
       setMode("new-created");
       setLoading(false); // Important: reset loading state
     } catch (err) {
-      console.error("[SessionModal] Failed to create session:", err);
       setError(err.message);
       setLoading(false);
     }
@@ -118,8 +105,6 @@ export default function SessionModal({ onSessionStart, onError }) {
 
     try {
       const code = joinCode.trim().toUpperCase();
-      console.log("[SessionModal] Attempting to join session:", code);
-
       const apiBase = getApiBase();
 
       // Join the session on the server
@@ -129,15 +114,12 @@ export default function SessionModal({ onSessionStart, onError }) {
         body: JSON.stringify({ sessionCode: code })
       });
 
-      console.log("[SessionModal] Join response status:", response.status);
-
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`;
         try {
           const error = await response.json();
           errorMessage = error.error || errorMessage;
         } catch (jsonErr) {
-          console.warn("[SessionModal] Could not parse join error response as JSON");
         }
         throw new Error(errorMessage);
       }
@@ -147,21 +129,17 @@ export default function SessionModal({ onSessionStart, onError }) {
         data = await response.json();
       } catch (err) {
         const rawText = await response.text();
-        console.error("[SessionModal] Join response not valid JSON. Raw response:", rawText);
         throw new Error("Server returned invalid JSON");
       }
 
       // Session is valid, proceed with this code
       const { sessionId } = data;
-      console.log("[SessionModal] Successfully joined session:", code);
-      
       onSessionStart({
         sessionId,
         isNewSession: false,
         username: null // Will be determined by parent component
       });
     } catch (err) {
-      console.error("[SessionModal] Failed to join session:", err);
       setError(err.message);
       setLoading(false);
     }
@@ -184,7 +162,6 @@ export default function SessionModal({ onSessionStart, onError }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.warn("Failed to copy to clipboard:", err);
     }
   }
 
@@ -194,8 +171,6 @@ export default function SessionModal({ onSessionStart, onError }) {
       handleJoin();
     }
   }
-
-  console.log("[SessionModal] import.meta.env.VITE_API_BASE_URL =", import.meta.env.VITE_API_BASE_URL);
 
   return (
     <div className="session-modal-backdrop">
@@ -317,6 +292,31 @@ export default function SessionModal({ onSessionStart, onError }) {
               
               <p className="session-code-instructions">
                 Share this code with your team so they can join your investigation.
+                You can continue now and they can join anytime.
+              </p>
+
+              <div className="session-modal-actions">
+                <button
+                  className="session-modal-btn secondary"
+                  onClick={handleBack}
+                >
+                  Back
+                </button>
+                <button
+                  className="session-modal-btn primary"
+                  onClick={handleContinueWithNew}
+                >
+                  <FaPlus />
+                  Start Investigation
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
                 You can continue now and they can join anytime.
               </p>
 

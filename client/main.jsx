@@ -6,8 +6,6 @@ import SessionModal from "./src/components/SessionModal/SessionModal";
 import DiscordSessionManager from "./utils/DiscordSessionManager";
 import "./style.css";
 
-console.log("[main.jsx] VITE_API_BASE_URL =", import.meta.env.VITE_API_BASE_URL);
-
 // ================================================
 // USERNAME PROMPT COMPONENT
 // ================================================
@@ -144,14 +142,11 @@ function isDiscordActivity() {
  */
 function getTokenUrl() {
   if (isDiscordActivity()) {
-    console.log("[API] Discord Activity detected, using /.proxy/api/token");
     return "/.proxy/api/token";
   }
   if (import.meta.env.MODE === "production") {
-    console.log("[API] Production mode, using full backend URL");
     return "https://phas-evidence-backend.onrender.com/api/token";
   }
-  console.log("[API] Development mode, using /api/token");
   return "/api/token";
 }
 
@@ -168,18 +163,12 @@ function setupFetchPatching() {
   
   window.fetch = async (...args) => {
     let [url, options] = args;
-    
-    // Extract URL string from Request object if needed
     if (url && typeof url === "object" && url.url) {
       url = url.url;
     }
-    
-    // Rewrite token endpoint URLs to use correct API path
     if (typeof url === "string" && url.match(/^\/token($|\?)/)) {
       url = getTokenUrl();
-      console.debug("[Fetch] Rewriting token URL to:", url);
     }
-    
     return originalFetch(url, options);
   };
 }
@@ -207,7 +196,6 @@ function SessionWrapper() {
   React.useEffect(() => {
     const isDiscord = DiscordSessionManager.isDiscordEnvironment();
     if (isDiscord) {
-      console.log('[Discord] Discord environment detected - starting auto-session');
       setIsDiscordAutoSession(true);
       setDiscordSessionLoading(true);
       initializeDiscordAutoSession();
@@ -216,22 +204,11 @@ function SessionWrapper() {
 
   const initializeDiscordAutoSession = async () => {
     try {
-      console.log('[Discord] Initializing Discord auto-session...');
-      
       const manager = new DiscordSessionManager();
       const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || 'your-discord-client-id';
-      
       const sessionData = await manager.initialize(DISCORD_CLIENT_ID);
-      
-      // Find current user from participants
       const currentParticipant = sessionData.participants.find(p => p.isCurrentUser);
       const username = currentParticipant?.username || 'Discord User';
-      
-      console.log('[Discord] Auto-session created:', {
-        sessionId: sessionData.sessionId,
-        username,
-        participantCount: sessionData.participants.length
-      });
       
       // Create user object for Discord session
       const discordUser = {
@@ -246,7 +223,6 @@ function SessionWrapper() {
       setDiscordSessionLoading(false);
       
     } catch (error) {
-      console.error('[Discord] Auto-session failed:', error);
       setError(`Discord auto-session failed: ${error.message}`);
       setIsDiscordAutoSession(false);
       setDiscordSessionLoading(false);
@@ -256,8 +232,6 @@ function SessionWrapper() {
 
   const handleSessionStart = async (sessionData) => {
     try {
-      console.log("[Session] Starting session with data:", sessionData);
-      
       let authenticatedUser = null;
       
       if (isDiscordActivity()) {
@@ -288,7 +262,6 @@ function SessionWrapper() {
       }
       
     } catch (error) {
-      console.error("[Session] Failed to start session:", error);
       setError(error.message);
     }
   };
@@ -396,7 +369,6 @@ function renderAppWithUser(user) {
   if (hasRendered) return;
   hasRendered = true;
   
-  console.log("[Render] Starting app with user:", user.username);
   root.render(
     <React.StrictMode>
       <App user={user} />
@@ -411,7 +383,6 @@ function renderSessionWrapper() {
   if (hasRendered) return;
   hasRendered = true;
   
-  console.log("[Render] Starting session wrapper");
   root.render(
     <React.StrictMode>
       <SessionWrapper />
@@ -448,11 +419,9 @@ async function authenticateWithDiscord() {
     const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
     window.discordSdk = discordSdk; // Expose for debugging
     
-    console.log("[Discord] Initializing SDK...");
     await discordSdk.ready();
     
     // Request authorization code
-    console.log("[Discord] Requesting authorization...");
     const { code } = await discordSdk.commands.authorize({
       client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
       response_type: "code",
@@ -462,7 +431,6 @@ async function authenticateWithDiscord() {
     });
     
     // Exchange code for access token
-    console.log("[Discord] Exchanging code for token...");
     const tokenUrl = getTokenUrl();
     const response = await fetch(tokenUrl, {
       method: "POST",
@@ -478,7 +446,6 @@ async function authenticateWithDiscord() {
     const { access_token } = await response.json();
     
     // Authenticate with Discord
-    console.log("[Discord] Authenticating with access token...");
     const auth = await discordSdk.commands.authenticate({ access_token });
     
     if (!auth?.user) {
@@ -491,16 +458,13 @@ async function authenticateWithDiscord() {
       const context = await discordSdk.commands.getContext();
       // Use channel ID for shared sessions, or activity instance for private sessions
       sessionId = context.channelId || context.activityInstanceId || sessionId;
-      console.log("[Discord] Using sessionId from context:", sessionId);
     } catch (e) {
-      console.warn("[Discord] Could not get context, using user-specific session:", sessionId);
+      // Ignore context errors, fallback to user-specific session
     }
     
-    console.log("[Discord] Authentication successful:", auth.user.username);
     return { ...auth.user, sessionId };
     
   } catch (error) {
-    console.error("[Discord] Authentication failed:", error);
     throw error;
   }
 }
@@ -514,6 +478,42 @@ async function authenticateWithDiscord() {
  * Note: SessionModal now handles session creation/joining
  * @returns {Object|null} User object from URL params or null
  */
+function getLocalUser() {
+  const params = new URLSearchParams(window.location.search);
+  const username = params.get("user");
+  const sessionCode = params.get("session");
+  
+  // Use URL parameters if provided (for testing/debugging)
+  if (username) {
+    const sessionId = sessionCode || `user-${username}-${Date.now()}`;
+    return { username, id: username, sessionId };
+  }
+  
+  // Return null - SessionModal will handle session creation
+  return null;
+}
+
+// ================================================
+// APPLICATION INITIALIZATION
+// ================================================
+
+/**
+ * Main initialization function that sets up the session wrapper
+ */
+async function initializeApp() {
+  // Set up fetch patching for consistent API routing
+  setupFetchPatching();
+  
+  // Always start with the session wrapper now
+  renderSessionWrapper();
+}
+
+// ================================================
+// START APPLICATION
+// ================================================
+
+// Initialize the application
+initializeApp();
 function getLocalUser() {
   const params = new URLSearchParams(window.location.search);
   const username = params.get("user");

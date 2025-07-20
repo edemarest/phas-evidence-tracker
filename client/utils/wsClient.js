@@ -18,7 +18,6 @@ function isDiscordActivity() {
 function getApiBase() {
   // Use env variable if present
   if (import.meta.env.VITE_API_BASE_URL) {
-    console.log("[wsClient] VITE_API_BASE_URL is set to:", import.meta.env.VITE_API_BASE_URL);
     return import.meta.env.VITE_API_BASE_URL;
   }
   // Always use full backend URL in production
@@ -26,15 +25,12 @@ function getApiBase() {
     import.meta.env.MODE === "production" ||
     window.location.hostname.endsWith("onrender.com")
   ) {
-    console.log("[wsClient] Using hardcoded backend URL for production:", "https://phas-evidence-backend.onrender.com/api");
     return "https://phas-evidence-backend.onrender.com/api";
   }
   // Discord Activity special case
   if (isDiscordActivity()) {
-    console.log("[wsClient] Using Discord proxy API");
     return "/.proxy/api";
   }
-  console.log("[wsClient] Using local /api for dev");
   return "/api";
 }
 
@@ -66,7 +62,6 @@ export function createPollingClient(user, onMessage) {
    */
   async function poll() {
     if (stopped) return;
-    
     try {
       const sessionId = user.sessionId || "default-session";
       const userId = user.id || user.username || "anonymous";
@@ -79,7 +74,6 @@ export function createPollingClient(user, onMessage) {
         
         // Connection restored
         if (!isConnected) {
-          console.log("[Polling] Connection restored!");
           onMessage && onMessage({ type: "connection_restored" });
           isConnected = true;
           consecutiveErrors = 0;
@@ -99,14 +93,12 @@ export function createPollingClient(user, onMessage) {
       
       // Connection lost notification (only on first error)
       if (isConnected) {
-        console.warn("[Polling] Connection lost, attempting to reconnect...", err.message);
         onMessage && onMessage({ type: "connection_lost" });
         isConnected = false;
       }
       
       // Exponential backoff for errors (server might be sleeping)
       pollInterval = Math.min(1000 * Math.pow(2, consecutiveErrors), maxInterval);
-      console.warn(`[Polling] Error (attempt ${consecutiveErrors}), retrying in ${pollInterval/1000}s:`, err.message);
     }
     
     // Schedule next poll with current interval
@@ -144,16 +136,13 @@ export function createPollingClient(user, onMessage) {
             throw new Error(`Server error: ${response.status}`);
           } else {
             // Client error, don't retry
-            console.error("[Client] Client error sending message:", response.status);
             return;
           }
         } catch (err) {
           retries--;
           if (retries > 0) {
-            console.warn(`[Client] Failed to send message, retrying... (${retries} left)`, err.message);
             await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
           } else {
-            console.error("[Client] Failed to send message after all retries:", err.message);
             onMessage && onMessage({ type: "send_failed", error: err.message });
           }
         }
@@ -173,7 +162,6 @@ export function createPollingClient(user, onMessage) {
           body: JSON.stringify({ user: msg.user, sessionId }),
         });
       } catch (err) {
-        console.error("[Client] Failed to reset book:", err);
       }
     },
 
@@ -182,7 +170,6 @@ export function createPollingClient(user, onMessage) {
      */
     close: async () => { 
       stopped = true; 
-      console.log("[Client] Polling client stopping, notifying server...");
       
       // Notify server that user is disconnecting
       try {
@@ -193,9 +180,7 @@ export function createPollingClient(user, onMessage) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionId, userId }),
         });
-        console.log("[Client] Successfully notified server of disconnect");
       } catch (err) {
-        console.warn("[Client] Failed to notify server of disconnect:", err);
       }
     },
 
@@ -205,6 +190,21 @@ export function createPollingClient(user, onMessage) {
     disconnect: async () => {
       const sessionId = user.sessionId || "default-session";
       const userId = user.id || user.username || "anonymous";
+      
+      try {
+        await fetch(`${apiBase}/session/disconnect`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, userId }),
+        });
+      } catch (err) {
+      }
+    }
+  };
+}
+
+// Export as createWSClient for backwards compatibility
+export const createWSClient = createPollingClient;
       
       try {
         await fetch(`${apiBase}/session/disconnect`, {
