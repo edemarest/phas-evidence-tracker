@@ -25,6 +25,10 @@ app.use(express.json());
 app.use((req, res, next) => {
   if (req.originalUrl.includes("/api/")) {
     console.debug(`[API] ${req.method} ${req.originalUrl}`);
+    console.debug(`[API] Headers:`, req.headers);
+    if (req.method === "POST") {
+      console.debug(`[API] Body:`, req.body);
+    }
   }
   next();
 });
@@ -447,16 +451,20 @@ apiRouter.post("/sessions/discord-sync-participants", (req, res) => {
 
 // Generate a new session code
 apiRouter.post("/session/create", (req, res) => {
+  console.log(`[Session] [CREATE] Received POST /session/create`);
+  console.log(`[Session] [CREATE] Headers:`, req.headers);
+  console.log(`[Session] [CREATE] Body:`, req.body);
   try {
     // Generate a unique 6-character session code
     const sessionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const sessionId = `session-${sessionCode}`;
     
-    console.log(`[Session] Creating new session with code: ${sessionCode}`);
+    console.log(`[Session] [CREATE] Creating new session with code: ${sessionCode}`);
     
     // Initialize the session state
     getSessionState(sessionId);
     
+    console.log(`[Session] [CREATE] Responding with:`, { sessionCode, sessionId });
     res.json({ 
       sessionCode,
       sessionId 
@@ -472,6 +480,9 @@ apiRouter.post("/session/create", (req, res) => {
 
 // Validate and join an existing session
 apiRouter.post("/session/join", (req, res) => {
+  console.log(`[Session] [JOIN] Received POST /session/join`);
+  console.log(`[Session] [JOIN] Headers:`, req.headers);
+  console.log(`[Session] [JOIN] Body:`, req.body);
   try {
     const { sessionCode } = req.body;
     
@@ -495,8 +506,9 @@ apiRouter.post("/session/join", (req, res) => {
     // Update last accessed time
     sessionStates[sessionId].lastAccessed = Date.now();
     
-    console.log(`[Session] User joining existing session: ${sessionCode}`);
+    console.log(`[Session] [JOIN] User joining existing session: ${sessionCode}`);
     
+    console.log(`[Session] [JOIN] Responding with:`, { sessionCode, sessionId });
     res.json({ 
       sessionCode,
       sessionId,
@@ -719,9 +731,21 @@ apiRouter.post("/book/reset", (req, res) => {
 app.use("/api", apiRouter);
 app.use("/.proxy/api", apiRouter);
 
-// 404 handler for unknown routes
+// 404 handler for unknown API routes
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith("/api") || req.originalUrl.startsWith("/.proxy/api")) {
+    console.warn(`[API] 404 Not Found: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ error: "Not found" });
+  } else {
+    next();
+  }
+});
+
+// Catch-all for non-API requests (should not happen for API calls)
 app.use((req, res) => {
-  res.status(404).json({ error: "Not found" });
+  console.warn(`[NON-API] Request received: ${req.method} ${req.originalUrl}`);
+  console.warn(`[NON-API] Headers:`, req.headers);
+  res.status(404).send("Not found (non-API route)");
 });
 
 // ================================================
