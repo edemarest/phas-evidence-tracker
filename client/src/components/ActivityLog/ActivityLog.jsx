@@ -12,8 +12,10 @@ import {
   FaRegCommentDots,
   FaBookOpen,
   FaChevronUp,
+  FaMusic,
+  FaQuestionCircle,
 } from "react-icons/fa";
-import { GiBoneKnife, GiCursedStar } from "react-icons/gi";
+import { GiBoneKnife, GiCursedStar, GiCrystalBall, GiVoodooDoll } from "react-icons/gi";
 import "./ActivityLog.css";
 
 // Map evidence to icons for log
@@ -23,8 +25,19 @@ const evidenceIcons = {
   "Ghost Writing": <FaBook className="log-icon" title="Ghost Writing" />,
   "D.O.T.S Projector": <FaRegDotCircle className="log-icon" title="D.O.T.S Projector" />,
   "Ghost Orbs": <FaRegEye className="log-icon" title="Ghost Orbs" />,
-  "Fingerprints": <FaFingerprint className="log-icon" title="Fingerprints" />,
+  "Ultraviolet": <FaFingerprint className="log-icon" title="Ultraviolet (Fingerprint)" />,
   "Freezing Temperatures": <FaSnowflake className="log-icon" title="Freezing Temperatures" />,
+};
+
+const cursedPossessionIcons = {
+  "None": <FaQuestionCircle className="log-icon" title="None" />,
+  "Music Box": <FaMusic className="log-icon" title="Music Box" />,
+  "Ouija Board": <GiCrystalBall className="log-icon" title="Ouija Board" />,
+  "Voodoo Doll": <GiVoodooDoll className="log-icon" title="Voodoo Doll" />,
+  "Haunted Mirror": <FaRegEye className="log-icon" title="Haunted Mirror" />,
+  "Summoning Circle": <FaRegDotCircle className="log-icon" title="Summoning Circle" />,
+  "Monkey Paw": <FaRegCommentDots className="log-icon" title="Monkey Paw" />,
+  "Tarot Cards": <GiCursedStar className="log-icon" title="Tarot Cards" />,
 };
 
 function getLogIcon(entry) {
@@ -45,7 +58,8 @@ function getLogIcon(entry) {
     return <GiBoneKnife className="log-icon log-bone" />;
   }
   if (entry.actionType === "cursed_object_update") {
-    return <GiCursedStar className="log-icon log-cursed" />;
+    // Use specific icon for possession
+    return cursedPossessionIcons[entry.possession] || <GiCursedStar className="log-icon log-cursed" />;
   }
   return <FaBookOpen className="log-icon" />;
 }
@@ -55,12 +69,14 @@ function formatLogEntry(entry) {
   if (!entry) return "";
   // Evidence actions
   if (entry.actionType === "evidence_update") {
+    // Replace 'Fingerprints' with 'Ultraviolet' in log text
+    const evidenceName = entry.evidence === "Fingerprints" ? "Ultraviolet" : entry.evidence;
     if (entry.state === "circled") {
-      return `${entry.user?.username} circled ${entry.evidence}`;
+      return `${entry.user?.username} circled ${evidenceName}`;
     } else if (entry.state === "crossed") {
-      return `${entry.user?.username} ruled out ${entry.evidence}`;
+      return `${entry.user?.username} ruled out ${evidenceName}`;
     } else if (entry.state === "blank") {
-      return `${entry.user?.username} cleared mark on ${entry.evidence}`;
+      return `${entry.user?.username} cleared mark on ${evidenceName}`;
     }
   }
   // Ghost actions
@@ -78,10 +94,19 @@ function formatLogEntry(entry) {
     return `${entry.user?.username} marked bone as ${entry.found ? "found" : "not found"}`;
   }
   if (entry.actionType === "cursed_object_update") {
-    return `${entry.user?.username} marked cursed object as ${entry.found ? "found" : "not found"}`;
+    if (entry.possession === "None") {
+      return `${entry.user?.username} unset the cursed possession`;
+    } else if (entry.prevPossession && entry.prevPossession !== "None" && entry.prevPossession !== entry.possession) {
+      return `${entry.user?.username} changed cursed possession from ${entry.prevPossession} to ${entry.possession}`;
+    } else {
+      return `${entry.user?.username} set cursed possession to ${entry.possession}`;
+    }
   }
   // Fallback: show the action as-is
-  if (entry.action) return entry.action;
+  if (entry.action) {
+    // Remove trailing comma from user lists in action strings
+    return entry.action.replace(/,\s*$/, "");
+  }
   return "";
 }
 
@@ -117,15 +142,15 @@ export default function ActivityLog({ log }) {
     <div className="activity-log-outer">
       <div className="activity-log-scroll" ref={scrollRef}>
         <ul className="activity-log">
-                    {(log || [])
-                        .slice(-Math.max(1, visibleCount))
-                        .reverse()
-                        .map((entry, i) => (
-                            <li key={i}>
-                                <span className="log-icon-wrapper">{getLogIcon(entry)}</span>
-                                <span className="log-text">{formatLogEntry(entry)}</span>
-                            </li>
-                        ))}
+          {(log || [])
+            .slice() // show all logs
+            .reverse()
+            .map((entry, i) => (
+              <li key={i}>
+                <span className="log-icon-wrapper">{getLogIcon(entry)}</span>
+                <span className="log-text">{formatLogEntry(entry)}</span>
+              </li>
+            ))}
         </ul>
         <button
           className={`activity-log-scroll-top-btn${showTopBtn ? " visible" : ""}`}

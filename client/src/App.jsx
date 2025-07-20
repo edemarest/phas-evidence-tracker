@@ -17,7 +17,7 @@ import "../style.css";
 const MOCK_STATE = {
   evidenceState: Object.fromEntries(evidenceTypes.map((e) => [e, "blank"])),
   boneFound: false,
-  cursedObjectFound: false,
+  cursedPossession: "",
   possibleGhosts: [],
   finalGhost: null,
   log: [
@@ -35,7 +35,13 @@ export default function App({ user }) {
   // STATE MANAGEMENT
   // ================================================
 
-  const [state, setState] = useState(null);
+  // Always initialize cursedPossession to 'None' if not present
+  const [state, setState] = useState(() => {
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    const base = isLocal ? { ...MOCK_STATE } : null;
+    if (base && !base.cursedPossession) base.cursedPossession = "None";
+    return base;
+  });
   const [connected, setConnected] = useState(true);
   const [ghostStates, setGhostStates] = useState({});
   const [showGhostTable, setShowGhostTable] = useState(false);
@@ -59,7 +65,12 @@ export default function App({ user }) {
     if (!user) return;
     let client = createPollingClient(user, (msg) => {
       if (msg.type === "sync_state") {
-        setState(msg.state);
+        // Always persist cursedPossession, default to 'None' if missing
+        setState(prev => {
+          const next = { ...msg.state };
+          if (!next.cursedPossession) next.cursedPossession = "None";
+          return next;
+        });
         setGhostStates(msg.state.ghostStates || {});
       } else if (msg.type === "connection_lost") {
         setConnectionStatus("reconnecting");
@@ -179,18 +190,20 @@ export default function App({ user }) {
     });
   }
 
-  function handleCursedObjectToggle(found) {
-    if (!pollingRef.current) return;
-    setState((prev) => ({
-      ...prev,
-      cursedObjectFound: found,
-    }));
+// EVENT HANDLERS - CURSED POSSESSION DROPDOWN
+function handleCursedPossessionChange(value) {
+  setState((prev) => ({
+    ...prev,
+    cursedPossession: value || "None",
+  }));
+  if (pollingRef.current) {
     pollingRef.current.sendMessage({
       type: "cursed_object_update",
-      found,
+      possession: value,
       user,
     });
   }
+}
 
   // ================================================
   // EVENT HANDLERS - GHOST SELECTION
@@ -349,33 +362,34 @@ export default function App({ user }) {
               <FaSkull style={{ marginRight: 4, verticalAlign: "middle" }} />
               Ghost Hunting Team:
             </b>{" "}
-            {users.map((u, index) => {
-              const isCurrentUser = u.username === user.username;
-              console.log(`[App] User ${u.username} === ${user.username}? ${isCurrentUser}`);
-              
-              return (
-                <span key={u.username || index}>
-                  {index > 0 && ", "}
-                  <span 
-                    className={isCurrentUser ? "current-user" : "other-user"}
-                    style={{
-                      color: isCurrentUser ? "#B22222" : "inherit",
-                      fontWeight: isCurrentUser ? "bold" : "normal"
-                    }}
-                  >
-                    {u.username}
+            {users
+              .map((u, index) => {
+                const isCurrentUser = u.username === user.username;
+                return (
+                  <span key={u.username || index}>
+                    <span
+                      className={isCurrentUser ? "current-user" : "other-user"}
+                      style={{
+                        color: isCurrentUser ? "#B22222" : "inherit",
+                        fontWeight: isCurrentUser ? "bold" : "normal"
+                      }}
+                    >
+                      {u.username}
+                    </span>
                   </span>
-                </span>
-              );
-            })}
+                );
+              })
+              .reduce((prev, curr, idx) =>
+                idx === 0 ? [curr] : [...prev, ", ", curr],
+                [])}
           </div>
 
           <SessionControls
             users={users}
             boneFound={effectiveState.boneFound}
-            cursedObjectFound={effectiveState.cursedObjectFound}
+            cursedPossession={effectiveState.cursedPossession}
             onBoneToggle={handleBoneToggle}
-            onCursedObjectToggle={handleCursedObjectToggle}
+            onCursedPossessionChange={handleCursedPossessionChange}
           />
 
           <div className="evidence-content-area">

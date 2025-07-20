@@ -4,7 +4,7 @@ export const evidenceTypes = [
   "Ghost Writing",
   "D.O.T.S Projector",
   "Ghost Orbs",
-  "Fingerprints",
+  "Ultraviolet",
   "Freezing Temperatures",
 ];
 
@@ -19,19 +19,19 @@ export const ghosts = [
   },
   {
     name: "Phantom",
-    evidences: ["Spirit Box", "Fingerprints", "D.O.T.S Projector"],
+    evidences: ["Spirit Box", "Ultraviolet", "D.O.T.S Projector"],
   },
   {
     name: "Poltergeist",
-    evidences: ["Spirit Box", "Ghost Writing", "Fingerprints"],
+    evidences: ["Spirit Box", "Ghost Writing", "Ultraviolet"],
   },
   {
     name: "Banshee",
-    evidences: ["Ghost Orbs", "Fingerprints", "D.O.T.S Projector"],
+    evidences: ["Ghost Orbs", "Ultraviolet", "D.O.T.S Projector"],
   },
   {
     name: "Jinn",
-    evidences: ["EMF Level 5", "Fingerprints", "Freezing Temperatures"],
+    evidences: ["EMF Level 5", "Ultraviolet", "Freezing Temperatures"],
   },
   {
     name: "Mare",
@@ -47,7 +47,7 @@ export const ghosts = [
   },
   {
     name: "Demon",
-    evidences: ["Ghost Writing", "Fingerprints", "Freezing Temperatures"],
+    evidences: ["Ghost Writing", "Ultraviolet", "Freezing Temperatures"],
   },
   {
     name: "Yurei",
@@ -63,15 +63,15 @@ export const ghosts = [
   },
   {
     name: "Hantu",
-    evidences: ["Ghost Orbs", "Fingerprints", "Freezing Temperatures"],
+    evidences: ["Ghost Orbs", "Ultraviolet", "Freezing Temperatures"],
   },
   {
     name: "Goryo",
-    evidences: ["EMF Level 5", "Fingerprints", "D.O.T.S Projector"],
+    evidences: ["EMF Level 5", "Ultraviolet", "D.O.T.S Projector"],
   },
   {
     name: "Myling",
-    evidences: ["EMF Level 5", "Ghost Writing", "Fingerprints"],
+    evidences: ["EMF Level 5", "Ghost Writing", "Ultraviolet"],
   },
   {
     name: "Onryo",
@@ -87,11 +87,11 @@ export const ghosts = [
   },
   {
     name: "Obake",
-    evidences: ["EMF Level 5", "Fingerprints", "Ghost Orbs"],
+    evidences: ["EMF Level 5", "Ultraviolet", "Ghost Orbs"],
   },
   {
     name: "Mimic",
-    evidences: ["Spirit Box", "Fingerprints", "Freezing Temperatures"],
+    evidences: ["Spirit Box", "Ultraviolet", "Freezing Temperatures"],
     // Note: The Mimic also gives "Ghost Orbs" as fake evidence in-game
     fakeEvidences: ["Ghost Orbs"],
   },

@@ -65,7 +65,7 @@ function getDefaultGhostStates() {
 // Session-scoped book states (sessionId -> bookState)
 const sessionStates = {};
 
-// Track active users per session (sessionId -> Set of userIds)
+// Track active users per session (sessionId -> Set of userId)
 const sessionUsers = {};
 
 // Discord session cleanup timers
@@ -79,7 +79,7 @@ function getSessionState(sessionId) {
       ghostStates: getDefaultGhostStates(),
       log: [],
       boneFound: false,
-      cursedObjectFound: false,
+      cursedPossession: "",
       lastAccessed: Date.now(),
       createdAt: Date.now(),
     };
@@ -142,7 +142,7 @@ function getOrCreateDiscordSession(instanceId, participants) {
       ghostStates: getDefaultGhostStates(),
       log: [],
       boneFound: false,
-      cursedObjectFound: false,
+      cursedPossession: "",
       sessionType: 'discord',
       discordInstanceId: instanceId,
       createdAt: Date.now(),
@@ -391,7 +391,7 @@ apiRouter.post("/sessions/discord-auto-join", (req, res) => {
         ghostStates: sessionState.ghostStates,
         log: sessionState.log,
         boneFound: sessionState.boneFound,
-        cursedObjectFound: sessionState.cursedObjectFound
+        cursedPossession: sessionState.cursedPossession
       },
       participants,
       isNewSession
@@ -625,6 +625,8 @@ apiRouter.get("/book/state", (req, res) => {
   
   res.json({
     ...sessionState,
+    // Remove deprecated cursedObjectFound if present
+    cursedPossession: sessionState.cursedPossession,
     possibleGhosts,
     finalGhost,
     activeUsers,
@@ -632,6 +634,7 @@ apiRouter.get("/book/state", (req, res) => {
     sessionType: sessionState.sessionType || 'manual',
     discordInstanceId: sessionState.discordInstanceId
   });
+  console.log('[DEBUG] Responding with sessionState.cursedPossession:', sessionState.cursedPossession);
 });
 
 // Apply user action to session book state
@@ -678,12 +681,22 @@ apiRouter.post("/book/action", (req, res) => {
       break;
 
     case 'cursed_object_update':
-      // Update cursed object found status and log action
-      sessionState.cursedObjectFound = action.found;
+      // Update cursed possession selection and log action
+      // Accepts value (string) or empty string for none
+      console.log('[DEBUG] Received cursed_object_update:', action.possession);
+      const prevPossession = sessionState.cursedPossession || "None";
+      const newPossession = typeof action.possession === "string" && action.possession.length > 0
+        ? action.possession
+        : "None";
+      sessionState.cursedPossession = newPossession;
+      console.log('[DEBUG] Updated sessionState.cursedPossession:', sessionState.cursedPossession);
+      // Always push a new log entry, even if value is unchanged
       sessionState.log.push({
         user: action.user,
         actionType: "cursed_object_update",
-        found: action.found,
+        possession: newPossession,
+        prevPossession,
+        timestamp: Date.now(),
       });
       break;
 
@@ -692,7 +705,7 @@ apiRouter.post("/book/action", (req, res) => {
       sessionState.evidenceState = getDefaultEvidenceState();
       sessionState.ghostStates = getDefaultGhostStates();
       sessionState.boneFound = false;
-      sessionState.cursedObjectFound = false;
+      sessionState.cursedPossession = "";
       sessionState.log.push({
         user: action.user,
         action: `${action.user.username} started a new investigation.`,
@@ -722,7 +735,7 @@ apiRouter.post("/book/reset", (req, res) => {
     ghostStates: getDefaultGhostStates(),
     log: [],
     boneFound: false,
-    cursedObjectFound: false,
+    cursedPossession: "",
   };
   res.json({ ok: true });
 });
@@ -846,13 +859,13 @@ function cleanupStaleUsers() {
     if (!session) {
       // Session no longer exists, clean up user tracking
       delete sessionUsers[sessionId];
-      return;
-    }
-    
-    // For sessions that haven't been accessed recently, clear user tracking
-    // This handles cases where users close browser without explicit disconnect
-    if (now - session.lastAccessed > maxUserAge) {
-      const userCount = sessionUsers[sessionId].size;
+  return {
+    evidenceState: getDefaultEvidenceState(),
+    ghostStates: getDefaultGhostStates(),
+    boneFound: false,
+    cursedPossession: "",
+    log: [],
+  };
       if (userCount > 0) {
         console.log(`[Cleanup] Clearing ${userCount} stale users from session ${sessionId}`);
         sessionUsers[sessionId].clear();

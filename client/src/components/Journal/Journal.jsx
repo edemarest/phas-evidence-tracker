@@ -17,7 +17,7 @@ const evidenceIcons = {
   "Ghost Writing": <FaBook className="evidence-icon" title="Ghost Writing" />,
   "D.O.T.S Projector": <FaDotCircle className="evidence-icon" title="D.O.T.S Projector" />,
   "Ghost Orbs": <FaRegEye className="evidence-icon" title="Ghost Orbs" />,
-  "Fingerprints": <FaFingerprint className="evidence-icon" title="Fingerprints" />,
+  "Ultraviolet": <FaFingerprint className="evidence-icon" title="Ultraviolet (Fingerprint)" />,
   "Freezing Temperatures": <FaSnowflake className="evidence-icon" title="Freezing Temperatures" />,
 };
 
