@@ -6,6 +6,8 @@ import SessionModal from "./src/components/SessionModal/SessionModal";
 import DiscordSessionManager from "./utils/DiscordSessionManager";
 import "./style.css";
 
+console.log("[main.jsx] VITE_API_BASE_URL =", import.meta.env.VITE_API_BASE_URL);
+
 // ================================================
 // USERNAME PROMPT COMPONENT
 // ================================================

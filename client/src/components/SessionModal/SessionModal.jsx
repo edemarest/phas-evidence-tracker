@@ -195,6 +195,8 @@ export default function SessionModal({ onSessionStart, onError }) {
     }
   }
 
+  console.log("[SessionModal] import.meta.env.VITE_API_BASE_URL =", import.meta.env.VITE_API_BASE_URL);
+
   return (
     <div className="session-modal-backdrop">
       <div className="session-modal">
