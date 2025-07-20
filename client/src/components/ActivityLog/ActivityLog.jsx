@@ -88,6 +88,7 @@ function formatLogEntry(entry) {
 export default function ActivityLog({ log }) {
   const scrollRef = useRef(null);
   const [showTopBtn, setShowTopBtn] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(1);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -98,8 +99,13 @@ export default function ActivityLog({ log }) {
     el.addEventListener("scroll", onScroll);
     // Initial check
     onScroll();
+    // Calculate how many logs can fit
+    const logHeight = 56; // px, adjust as needed
+    const containerHeight = el.offsetHeight || 0;
+    const count = Math.max(1, Math.floor(containerHeight / logHeight));
+    setVisibleCount(count);
     return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [log]);
 
   function scrollToTop() {
     if (scrollRef.current) {
@@ -112,7 +118,7 @@ export default function ActivityLog({ log }) {
       <div className="activity-log-scroll" ref={scrollRef}>
         <ul className="activity-log">
           {(log || [])
-            .slice(-10)
+            .slice(-visibleCount)
             .reverse()
             .map((entry, i) => (
               <li key={i}>
