@@ -360,21 +360,6 @@ function SessionWrapper() {
   return <App user={user} />;
 }
 
-/**
- * Renders the main App component with user context
- * Prevents duplicate rendering attempts
- * @param {Object} user - User object with username and id
- */
-function renderAppWithUser(user) {
-  if (hasRendered) return;
-  hasRendered = true;
-  
-  root.render(
-    <React.StrictMode>
-      <App user={user} />
-    </React.StrictMode>
-  );
-}
 
 /**
  * Renders the session wrapper (new main entry point)
@@ -390,20 +375,6 @@ function renderSessionWrapper() {
   );
 }
 
-/**
- * Renders error state when authentication or setup fails
- * @param {string} message - Error message to display
- */
-function renderError(message) {
-  console.error("[Render]", message);
-  root.render(
-    <div style={{ padding: 32, color: "red", textAlign: "center" }}>
-      <h3>Authentication Error</h3>
-      <p>{message}</p>
-      <p>Please try refreshing the page.</p>
-    </div>
-  );
-}
 
 // ================================================
 // DISCORD AUTHENTICATION FLOW
@@ -478,20 +449,6 @@ async function authenticateWithDiscord() {
  * Note: SessionModal now handles session creation/joining
  * @returns {Object|null} User object from URL params or null
  */
-function getLocalUser() {
-  const params = new URLSearchParams(window.location.search);
-  const username = params.get("user");
-  const sessionCode = params.get("session");
-  
-  // Use URL parameters if provided (for testing/debugging)
-  if (username) {
-    const sessionId = sessionCode || `user-${username}-${Date.now()}`;
-    return { username, id: username, sessionId };
-  }
-  
-  // Return null - SessionModal will handle session creation
-  return null;
-}
 
 // ================================================
 // APPLICATION INITIALIZATION
@@ -514,22 +471,6 @@ async function initializeApp() {
 
 // Initialize the application
 initializeApp();
-function getLocalUser() {
-  const params = new URLSearchParams(window.location.search);
-  const username = params.get("user");
-  const sessionCode = params.get("session");
-  
-  // Use URL parameters if provided (for testing/debugging)
-  if (username) {
-    console.log("[Local] Using username from URL:", username);
-    const sessionId = sessionCode || `user-${username}-${Date.now()}`;
-    console.log("[Local] Using sessionId:", sessionId);
-    return { username, id: username, sessionId };
-  }
-  
-  // Return null - SessionModal will handle session creation
-  return null;
-}
 
 // ================================================
 // APPLICATION INITIALIZATION
