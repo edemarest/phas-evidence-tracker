@@ -16,14 +16,18 @@ function isDiscordActivity() {
  * @returns {string} The API base URL to use for requests
  */
 function getApiBase() {
+  // Always use full backend URL in production
+  if (
+    import.meta.env.MODE === "production" ||
+    window.location.hostname.endsWith("onrender.com")
+  ) {
+    console.log("[getApiBase] Production web, using full backend URL");
+    return "https://phas-evidence-backend.onrender.com/api";
+  }
+  // Discord Activity special case
   if (isDiscordActivity()) {
     console.log("[getApiBase] Discord Activity detected, using /.proxy/api");
     return "/.proxy/api";
-  }
-  // Always use full backend URL in production
-  if (import.meta.env.MODE === "production" || window.location.hostname.endsWith("onrender.com")) {
-    console.log("[getApiBase] Production web, using full backend URL");
-    return "https://phas-evidence-backend.onrender.com/api";
   }
   console.log("[getApiBase] Dev web, using /api");
   return "/api";

@@ -4,12 +4,16 @@ import "./SessionModal.css";
 
 // Utility function to get the correct API base URL
 function getApiBase() {
+  // Always use full backend URL in production
+  if (
+    import.meta.env.MODE === "production" ||
+    window.location.hostname.endsWith("onrender.com")
+  ) {
+    return "https://phas-evidence-backend.onrender.com/api";
+  }
+  // Discord Activity special case
   if (window.location.search.includes("frame_id") || window.location.hostname.endsWith("discordsays.com")) {
     return "/.proxy/api";
-  }
-  // Always use full backend URL in production
-  if (import.meta.env.MODE === "production" || window.location.hostname.endsWith("onrender.com")) {
-    return "https://phas-evidence-backend.onrender.com/api";
   }
   return "/api";
 }
