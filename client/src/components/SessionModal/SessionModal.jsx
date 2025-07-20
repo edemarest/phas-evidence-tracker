@@ -72,14 +72,16 @@ export default function SessionModal({ onSessionStart, onError }) {
         throw new Error(errorMessage);
       }
 
-      const responseText = await response.text();
-      console.log("[SessionModal] Response text:", responseText);
-      
-      if (!responseText) {
-        throw new Error("Empty response from server");
+      let data;
+      try {
+        data = await response.json();
+      } catch (err) {
+        const rawText = await response.text();
+        console.error("[SessionModal] Response not valid JSON. Raw response:", rawText);
+        throw new Error("Server returned invalid JSON");
       }
       
-      const { sessionCode, sessionId } = JSON.parse(responseText);
+      const { sessionCode, sessionId } = data;
       setNewSessionCode(sessionCode);
       
       console.log("[SessionModal] Created new session:", sessionCode);
@@ -128,13 +130,17 @@ export default function SessionModal({ onSessionStart, onError }) {
         throw new Error(errorMessage);
       }
 
-      const responseText = await response.text();
-      if (!responseText) {
-        throw new Error("Empty response from server");
+      let data;
+      try {
+        data = await response.json();
+      } catch (err) {
+        const rawText = await response.text();
+        console.error("[SessionModal] Join response not valid JSON. Raw response:", rawText);
+        throw new Error("Server returned invalid JSON");
       }
 
       // Session is valid, proceed with this code
-      const { sessionId } = JSON.parse(responseText);
+      const { sessionId } = data;
       console.log("[SessionModal] Successfully joined session:", code);
       
       onSessionStart({
