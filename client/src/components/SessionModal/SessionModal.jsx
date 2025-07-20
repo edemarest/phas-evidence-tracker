@@ -4,17 +4,25 @@ import "./SessionModal.css";
 
 // Utility function to get the correct API base URL
 function getApiBase() {
+  // Use env variable if present
+  if (import.meta.env.VITE_API_BASE_URL) {
+    console.log("[SessionModal] VITE_API_BASE_URL is set to:", import.meta.env.VITE_API_BASE_URL);
+    return import.meta.env.VITE_API_BASE_URL;
+  }
   // Always use full backend URL in production
   if (
     import.meta.env.MODE === "production" ||
     window.location.hostname.endsWith("onrender.com")
   ) {
+    console.log("[SessionModal] Using hardcoded backend URL for production:", "https://phas-evidence-backend.onrender.com/api");
     return "https://phas-evidence-backend.onrender.com/api";
   }
   // Discord Activity special case
   if (window.location.search.includes("frame_id") || window.location.hostname.endsWith("discordsays.com")) {
+    console.log("[SessionModal] Using Discord proxy API");
     return "/.proxy/api";
   }
+  console.log("[SessionModal] Using local /api for dev");
   return "/api";
 }
 

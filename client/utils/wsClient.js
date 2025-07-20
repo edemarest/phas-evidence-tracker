@@ -16,20 +16,25 @@ function isDiscordActivity() {
  * @returns {string} The API base URL to use for requests
  */
 function getApiBase() {
+  // Use env variable if present
+  if (import.meta.env.VITE_API_BASE_URL) {
+    console.log("[wsClient] VITE_API_BASE_URL is set to:", import.meta.env.VITE_API_BASE_URL);
+    return import.meta.env.VITE_API_BASE_URL;
+  }
   // Always use full backend URL in production
   if (
     import.meta.env.MODE === "production" ||
     window.location.hostname.endsWith("onrender.com")
   ) {
-    console.log("[getApiBase] Production web, using full backend URL");
+    console.log("[wsClient] Using hardcoded backend URL for production:", "https://phas-evidence-backend.onrender.com/api");
     return "https://phas-evidence-backend.onrender.com/api";
   }
   // Discord Activity special case
   if (isDiscordActivity()) {
-    console.log("[getApiBase] Discord Activity detected, using /.proxy/api");
+    console.log("[wsClient] Using Discord proxy API");
     return "/.proxy/api";
   }
-  console.log("[getApiBase] Dev web, using /api");
+  console.log("[wsClient] Using local /api for dev");
   return "/api";
 }
 
